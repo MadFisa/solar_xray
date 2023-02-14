@@ -15,6 +15,8 @@ except KeyError:
     print("CALDB environment variable not set")
 
 
+# A function to parse XSM MET
+xsm_time_parser = lambda col: pd.to_datetime(col, origin="2017/01/01", unit="s")
 
 def read_minxss_data(file_name):
     """
@@ -60,7 +62,7 @@ def read_xsm_data(pha_file):
     ----------
     xsm_data : xarray dataset
     """
-    data_origin_time = "2017-01-01"
+    # data_origin_time = "2017-01-01"
     with fits.open(pha_file) as pha_reader:
         pha_data = pha_reader[1].data
         rmf_file = pha_reader[1].header["RESPFILE"]
@@ -74,9 +76,9 @@ def read_xsm_data(pha_file):
     t_stop = pha_data["TSTOP"]
     t_mid = (t_start + t_stop) / 2
 
-    time_start = pd.to_datetime(t_start, origin=data_origin_time, unit="s")
-    time_stop = pd.to_datetime(t_stop, origin=data_origin_time, unit="s")
-    time_mid = pd.to_datetime(t_mid, origin=data_origin_time, unit="s")
+    time_start = xsm_time_parser(t_start)
+    time_stop = xsm_time_parser(t_stop)
+    time_mid = xsm_time_parser(t_mid)
     xsm_data = xr.Dataset(
         data_vars={
             "cps": (("time", "channel"), counts),

@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import xarray as xr
-
+import os
 from data_utils import read_daxss_data
 
 DAXSS_file = "./data/daxss_solarSXR_level1_2022-02-14-mission_v2.0.0.ncdf"
@@ -34,7 +34,7 @@ daxss_intervals_np = daxss_intervals.to_numpy()
 # Calculate the flux for DAXSS
 flux_kev = daxss_data["irradiance"] * daxss_data.energy  # in kev/s
 flux_W = flux_kev * 1.6e-16
-daxss_flux = flux_W.isel(energy=slice(2, -1)).sum(dim="energy")
+daxss_flux = flux_W.sel(energy=slice(0.7, 15)).sum(dim="energy")
 
 #%% Look for data in flare intervals
 
@@ -72,10 +72,36 @@ flare_table["goes17_lc"] = clasifier(goes17_data["xrsa_flux"])
 
 
 #%% Save the table
-observations = flare_table.drop(columns=["daxss_interval_beg", "daxss_interval_end"])
+observations_table = flare_table.drop(columns=["daxss_interval_beg", "daxss_interval_end"])
 observation_file = "./data/flare_observation.h5"
-observations.to_hdf(observation_file, "obs")
+observations_table.to_hdf(observation_file, "obs")
 
+#%% Lets plot them
+figures_dir = "./data/figures/flares_nonLog"
+if not os.path.isdir(figures_dir):
+    os.makedirs(figures_dir)
+
+for flare_num in observations_table.index:
+    fig, ax = plt.subplots(1, 1, figsize=(16, 9))
+    flare_peak = observations_table["event_peaktime"][flare_num]
+    flare_class = observations_table["fl_goescls"][flare_num]
+    daxss_flare = observations_table["daxss_lc"][flare_num]
+    xsm_flare = observations_table["xsm_lc"][flare_num]
+    goes16_flare = observations_table["goes16_lc"][flare_num]
+    goes17_flare = observations_table["goes17_lc"][flare_num]
+
+    daxss_flare.plot.line("b--o", label="daxss")
+    if xsm_flare.time.size != 0:
+        xsm_flare.plot.line("k--o", label="xsm")
+        
+    goes16_flare.plot.line("r--o", label="goes16")
+    goes17_flare.plot.line("g--o", label="goes17")
+    plt.title(f"Class {flare_class} Peak time = {flare_peak}")
+    plt.yscale("log")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(f'{figures_dir}/num{flare_num}_cls{flare_class}_{flare_peak.strftime("%Y%m%dT%H%M%S")}.png')
+    plt.close()
 # fig, ax = plt.subplots(1, 1)
 # for interval in daxss_intervals_np:
 # interval_beg = interval[0]

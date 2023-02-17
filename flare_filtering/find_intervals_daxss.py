@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 from data_utils import read_daxss_data
 
-DAXSS_file = "./daxss_solarSXR_level1_2022-02-14-mission_v2.0.0.ncdf"
+DAXSS_file = "./data/daxss_solarSXR_level1_2022-02-14-mission_v2.0.0.ncdf"
 daxss_data = read_daxss_data(DAXSS_file)
 t_unit = pd.Timedelta(minutes=1)  # Time unit we will be working on
 # %% Visualise
@@ -57,4 +57,4 @@ plt.legend()
 
 time_intervals = np.vstack((begin_points, end_points)).T
 time_csv_file = "DAXSS_time_intervals.csv"
-np.savetxt(time_csv_file, time_intervals, delimiter=',', fmt='%s')
+np.savetxt(time_csv_file, time_intervals, delimiter=',', fmt='%s', header='start_points,end_points')

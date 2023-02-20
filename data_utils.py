@@ -7,16 +7,9 @@ import xarray as xr
 from astropy.io import fits
 from netCDF4 import Dataset
 
-try:
-    if os.environ["CALDB"]:
-        CALDB = os.environ["CALDB"]
-        print(f"CALDB directory is {CALDB}")
-except KeyError:
-    print("CALDB environment variable not set")
-
-
 # A function to parse XSM MET
 xsm_time_parser = lambda col: pd.to_datetime(col, origin="2017/01/01", unit="s")
+
 
 def read_minxss_data(file_name):
     """
@@ -134,7 +127,13 @@ def create_xarray(filename):
     )
     return ds
 
-def create_daxss_pha(data_array,arf_path='minxss_fm3_ARF.fits',rmf_path='minxss_fm3_RMF.fits',out_dir='./'):
+
+def create_daxss_pha(
+    data_array,
+    arf_path="minxss_fm3_ARF.fits",
+    rmf_path="minxss_fm3_RMF.fits",
+    out_dir="./",
+):
     """
     Creates PHA files for datarray passed of DAXSS data.
     Expects the data array to be sliced version of that returned by read_daxss_data() to the required time.
@@ -147,81 +146,84 @@ def create_daxss_pha(data_array,arf_path='minxss_fm3_ARF.fits',rmf_path='minxss_
 
     Returns
     -------
-    
+
 
     """
     hdr_dummy = fits.Header()
     hdr_data = fits.Header()
-    hdr_dummy['MISSION'] = "InspireSat-1"
-    hdr_dummy['TELESCOP'] = "InspireSat-1"
-    hdr_dummy['INSTRUME'] = "DAXSS"
-    hdr_dummy['ORIGIN'] = "LASP"
-    hdr_dummy['CREATOR'] = "DAXSSPlotterUtility_v1"
-    hdr_dummy['CONTENT'] = "Type-I PHA file"
+    hdr_dummy["MISSION"] = "InspireSat-1"
+    hdr_dummy["TELESCOP"] = "InspireSat-1"
+    hdr_dummy["INSTRUME"] = "DAXSS"
+    hdr_dummy["ORIGIN"] = "LASP"
+    hdr_dummy["CREATOR"] = "DAXSSPlotterUtility_v1"
+    hdr_dummy["CONTENT"] = "Type-I PHA file"
 
     # Data Header
-    hdr_data['MISSION'] = "InspireSat-1"
-    hdr_data['TELESCOP'] = "InspireSat-1"
-    hdr_data['INSTRUME'] = "DAXSS"
-    hdr_data['ORIGIN'] = "LASP"
-    hdr_data['CREATOR'] = "DAXSSPlotterUtility_v1"
-    hdr_data['CONTENT'] = "SPECTRUM"
-    hdr_data['HDUCLASS'] = "OGIP"
-    hdr_data['LONGSTRN'] = "OGIP 1.0"
-    hdr_data['HDUCLAS1'] = "SPECTRUM"
-    hdr_data['HDUVERS1'] = "1.2.1"
-    hdr_data['HDUVERS'] = "1.2.1"
+    hdr_data["MISSION"] = "InspireSat-1"
+    hdr_data["TELESCOP"] = "InspireSat-1"
+    hdr_data["INSTRUME"] = "DAXSS"
+    hdr_data["ORIGIN"] = "LASP"
+    hdr_data["CREATOR"] = "DAXSSPlotterUtility_v1"
+    hdr_data["CONTENT"] = "SPECTRUM"
+    hdr_data["HDUCLASS"] = "OGIP"
+    hdr_data["LONGSTRN"] = "OGIP 1.0"
+    hdr_data["HDUCLAS1"] = "SPECTRUM"
+    hdr_data["HDUVERS1"] = "1.2.1"
+    hdr_data["HDUVERS"] = "1.2.1"
 
-    hdr_data['AREASCAL'] = "1"
-    hdr_data['BACKSCAL'] = "1"
-    hdr_data['CORRSCAL'] = "1"
-    hdr_data['BACKFILE'] = "none"
+    hdr_data["AREASCAL"] = "1"
+    hdr_data["BACKSCAL"] = "1"
+    hdr_data["CORRSCAL"] = "1"
+    hdr_data["BACKFILE"] = "none"
 
+    hdr_data["CHANTYPE"] = "PHA"
+    hdr_data["POISSERR"] = "F"
 
-    hdr_data['CHANTYPE'] = "PHA"
-    hdr_data['POISSERR'] = "F"
-
-    hdr_data['CORRFILE'] = "none"
-    hdr_data['EXTNAME']  = 'SPECTRUM'
-    hdr_data['FILTER']   = "Be/Kapton"
-    hdr_data['EXPOSURE'] = "9"
-    hdr_data['DETCHANS'] = "1000"
-    hdr_data['GROUPING'] = "0"
+    hdr_data["CORRFILE"] = "none"
+    hdr_data["EXTNAME"] = "SPECTRUM"
+    hdr_data["FILTER"] = "Be/Kapton"
+    hdr_data["EXPOSURE"] = "9"
+    hdr_data["DETCHANS"] = "1000"
+    hdr_data["GROUPING"] = "0"
     # CALDB = "/home/DAXSS_AED/Chianti_codes/xsm/caldb"
-    channel_number_array = np.arange(1,1001,dtype=np.int32)
-    hdr_data['RESPFILE'] = rmf_path
-    hdr_data['ANCRFILE'] = arf_path
-    daxss_data_selected = data_array.isel(energy=slice(6,1006))
-    channel_number_array = np.arange(1,1001,dtype=np.int32)
-    counts = daxss_data_selected['cps']
-    systematic_error_array = daxss_data_selected['cps_err']/daxss_data_selected['cps'] 
-    statistical_error_array = daxss_data_selected['cps_precision']
-
+    channel_number_array = np.arange(1, 1001, dtype=np.int32)
+    hdr_data["RESPFILE"] = rmf_path
+    hdr_data["ANCRFILE"] = arf_path
+    daxss_data_selected = data_array.isel(energy=slice(6, 1006))
+    channel_number_array = np.arange(1, 1001, dtype=np.int32)
+    counts = daxss_data_selected["cps"]
+    systematic_error_array = daxss_data_selected["cps_err"] / daxss_data_selected["cps"]
+    statistical_error_array = daxss_data_selected["cps_precision"]
 
     # Creating and Storing the FITS File
     time_ISO_array = daxss_data_selected.time
     #%% Create the array
     c1 = channel_number_array
-    for i,time in enumerate(time_ISO_array):
+    for i, time in enumerate(time_ISO_array):
         c2 = counts.isel(time=i)
-        c3 =statistical_error_array.isel(time=i)
+        c3 = statistical_error_array.isel(time=i)
         c4 = systematic_error_array.isel(time=i)  # Accuracy = Systematic Error.
         c4[np.isnan(c4)] = 0
         file_name = f"DAXSS_{np.datetime_as_string(time.data)}.pha"
-        hdr_dummy['FILENAME'] = file_name
-        hdr_dummy['DATE'] = np.datetime_as_string(time.data)
-        hdr_data['FILENAME'] = hdr_dummy['FILENAME']
-        hdr_data['DATE'] =  hdr_dummy['DATE']
+        hdr_dummy["FILENAME"] = file_name
+        hdr_dummy["DATE"] = np.datetime_as_string(time.data)
+        hdr_data["FILENAME"] = hdr_dummy["FILENAME"]
+        hdr_data["DATE"] = hdr_dummy["DATE"]
         # Data
         hdu_data = fits.BinTableHDU.from_columns(
-                    [fits.Column(name='CHANNEL', format='J', array=c1),
-                     fits.Column(name='RATE', format='E', array=c2),
-                     fits.Column(name='STAT_ERR', format='E', array=c3),
-                     fits.Column(name='SYS_ERR', format='E', array=c4)],header=hdr_data)
+            [
+                fits.Column(name="CHANNEL", format="J", array=c1),
+                fits.Column(name="RATE", format="E", array=c2),
+                fits.Column(name="STAT_ERR", format="E", array=c3),
+                fits.Column(name="SYS_ERR", format="E", array=c4),
+            ],
+            header=hdr_data,
+        )
         dummy_primary = fits.PrimaryHDU(header=hdr_dummy)
         hdul = fits.HDUList([dummy_primary, hdu_data])
         filename_fits = f"{out_dir}/{file_name}"
         hdul.writeto(filename_fits, overwrite=True)
+
 
 def read_tables(table_dir, tables_list=None):
     """
@@ -315,7 +317,7 @@ def create_rmf_dataarray(
             no_of_channels = reader[matrix_col].header["DETCHANS"]
 
     # Create Response Matrix with dimension as energy bins and Channel numbers
-    channel_number = np.arange(1,no_of_channels+1)
+    channel_number = np.arange(1, no_of_channels + 1)
     channel_energy_mid = (rmf_channel["E_MIN"] + rmf_channel["E_MAX"]) / 2
 
     energy_bin_mid = (rmf_file["ENERG_LO"] + rmf_file["ENERG_HI"]) / 2

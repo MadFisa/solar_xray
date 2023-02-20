@@ -1,4 +1,6 @@
+#!/bin/bash
 #Sample bash script to automate data download via PRADAN.
+#The script expect a file with dates in YYYYmmdd format in each line as input.
 
 ## Modified version for XSM data download
 
@@ -20,12 +22,9 @@ payload="xsm"
 #proxyOptions="-e use_proxy=yes -e https_proxy=https://username:password@proxyserverIP:Port"
 proxyOptions=""
 
-start_date=20221010
-num_days=10
+while IFS= read -r cdate; do
 
-for iday in `seq 1 $num_days`; do
-
-    cdate=`date +%Y/%m/%d -d "${start_date}+${iday} days"`
+#    cdate=`date +%Y/%m/%d -d "${start_date}+${iday} days"`
     dd=$(date -d "$cdate" '+%d')
     mm=$(date -d "$cdate" '+%m')
     yyyy=$(date -d "$cdate" '+%Y')
@@ -33,11 +32,11 @@ for iday in `seq 1 $num_days`; do
     file=ch2_xsm_${yyyy}${mm}${dd}_v1.zip
 
     echo $file;
-    wget $proxyOptions --content-disposition --tries=1 --no-cookies --header "Cookie: $cookies" $urlPrefix/auto/$yyyy/$file?$payload;
+    wget $proxyOptions --content-disposition --tries=1 --no-cookies -N --header "Cookie: $cookies" $urlPrefix/auto/$yyyy/$file?$payload;
 
     if [ $? -ne 0 ]; then
 
-        wget $proxyOptions --content-disposition --tries=1 --no-cookies --header "Cookie: $cookies" $urlPrefix/$file?$payload;
+        wget $proxyOptions --content-disposition --tries=1 --no-cookies -N --header "Cookie: $cookies" $urlPrefix/$file?$payload;
 
         if [ $? -ne 0 ]; then
 
@@ -45,7 +44,5 @@ for iday in `seq 1 $num_days`; do
             exit -1;
         fi
     fi
-
-done
-
+done < "$1"
 

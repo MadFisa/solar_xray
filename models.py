@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Wed Jul 19 10:43:57 2022
-
-@author: Asif
+File: models.py
+Author: Asif Mohamed Mandayapuram
+Email: asifmp97@gmail.com
+Github: github/MadFisa
+Description: A module containing codes for making and running isotheraml plasma
+models based on ChiantiPy.
 """
 
 import os

@@ -1,3 +1,11 @@
+"""
+File: data_utils.py
+Author: Asif Mohamed Mandayapuram
+Email: asifmp97@gmail.com
+Github: github/MadFisa
+Description: A module conatining utilities requied for daxss and xsm data processing.
+"""
+
 import os
 import warnings
 

@@ -192,7 +192,7 @@ def create_daxss_pha(
     daxss_data_selected = data_array.isel(energy=slice(6, 1006))
     channel_number_array = np.arange(1, 1001, dtype=np.int32)
     counts = daxss_data_selected["cps"]
-    systematic_error_array = daxss_data_selected["cps_err"] / daxss_data_selected["cps"]
+    systematic_error_array = daxss_data_selected["cps_accuracy"] / daxss_data_selected["cps"]
     statistical_error_array = daxss_data_selected["cps_precision"]
 
     # Creating and Storing the FITS File
@@ -283,10 +283,10 @@ def read_daxss_data(file_name):
     ds = xr.Dataset(
         data_vars={
             "cps": (("time", "energy"), cps),
-            "cps_err": (("time", "energy"), cps_err),
+            "cps_accuracy": (("time", "energy"), cps_err),
             "cps_precision": (("time", "energy"), cps_precision),
             "irradiance": (("time", "energy"), irradiance),
-            "irradiance_err": (("time", "energy"), irradiance_err),
+            "irradiance_uncert": (("time", "energy"), irradiance_err),
         },
         coords={"time": dates, "energy": energy[0]},
     )

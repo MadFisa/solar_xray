@@ -35,8 +35,10 @@ daxss_intervals_np = daxss_intervals.to_numpy()
 
 # Calculate the flux for DAXSS
 flux_kev = daxss_data["irradiance"] * daxss_data.energy  # in kev/s
-flux_W = flux_kev * 1.6e-16
-daxss_flux = flux_W.sel(energy=slice(0.7, 15)).sum(dim="energy")
+dE = np.diff(daxss_data.energy)
+dE = np.append(dE, dE[-1])
+flux_W = flux_kev * 1.6e-16 * 1e4 * dE  # from keV/cm^2 per kev to W/m^2
+daxss_flux = flux_W.sel(energy=slice(1.54, 12.39)).sum(dim="energy")  # 1-8 Armstrong
 
 #%% Look for data in flare intervals
 
@@ -69,8 +71,8 @@ clasifier = lambda df: [
 ]
 flare_table["daxss_lc"] = clasifier(daxss_flux)
 flare_table["xsm_lc"] = clasifier(xsm_lc["flux (1-8A)"])
-flare_table["goes16_lc"] = clasifier(goes16_data["xrsa_flux"])
-flare_table["goes17_lc"] = clasifier(goes17_data["xrsa_flux"])
+flare_table["goes16_lc"] = clasifier(goes16_data["xrsb_flux"])
+flare_table["goes17_lc"] = clasifier(goes17_data["xrsb_flux"])
 
 
 #%% Save the table
@@ -81,7 +83,7 @@ observation_file = "./data/flare_observation.h5"
 observations_table.to_hdf(observation_file, "obs")
 
 #%% Lets plot them
-figures_dir = "./data/figures/flares_nonLog"
+figures_dir = "./data/figures/flares_Log"
 if not os.path.isdir(figures_dir):
     os.makedirs(figures_dir)
 

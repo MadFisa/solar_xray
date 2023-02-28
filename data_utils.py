@@ -156,6 +156,7 @@ def create_daxss_pha(
 
     Returns
     -------
+    a resample object if bin size was specified.
 
 
     """
@@ -225,8 +226,8 @@ def create_daxss_pha(
     for i, time in enumerate(time_ISO_array):
         c2 = counts.isel(time=i)
         c3 = statistical_error_array.isel(time=i)
-        c4 = systematic_error_array.isel(time=i)  # Accuracy = Systematic Error.
-        c4[np.isnan(c4)] = 0
+        c4 = systematic_error_array.isel(time=i)  # Accuracy = Systematic Error. TODO:
+        c4[np.isnan(c4)] = 0 # WHAT?! TODO:
         file_name = f"DAXSS_{np.datetime_as_string(time.data)}.pha"
         hdr_dummy["FILENAME"] = file_name
         hdr_dummy["DATE"] = np.datetime_as_string(time.data)

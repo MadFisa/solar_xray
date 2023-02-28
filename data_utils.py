@@ -141,6 +141,7 @@ def create_daxss_pha(
     arf_path="minxss_fm3_ARF.fits",
     rmf_path="minxss_fm3_RMF.fits",
     out_dir="./",
+    bin_size=None
 ):
     """
     Creates PHA files for datarray passed of DAXSS data.
@@ -151,6 +152,7 @@ def create_daxss_pha(
     out_dir : directory to output the PHA files to, optional
     arf_path : path to arf file
     rmf_path : path to rmf file
+    bin_size : string, bin size to bin, expected in format for pd.resample.
 
     Returns
     -------
@@ -199,12 +201,25 @@ def create_daxss_pha(
     hdr_data["ANCRFILE"] = arf_path
     daxss_data_selected = data_array.isel(energy=slice(6, 1006))
     channel_number_array = np.arange(1, 1001, dtype=np.int32)
-    counts = daxss_data_selected["cps"]
-    systematic_error_array = daxss_data_selected["cps_accuracy"] / daxss_data_selected["cps"]
-    statistical_error_array = daxss_data_selected["cps_precision"]
+    if bin_size is not None:
+        resampled = daxss_data_selected["cps"].resample(time=bin_size)
+        counts = resampled.sum()
+        statistical_error_array = (
+            daxss_data_selected["cps_precision"]
+            .resample(time=bin_size)
+            .apply(calc_shot_noise)
+        )
+        cps_accuracy = (
+            daxss_data_selected["cps_accuracy"].resample(time=bin_size).mean()
+        )  # This is probbly wrong. Need to figure out.
+    else:
+        counts = daxss_data_selected["cps"]
+        statistical_error_array = daxss_data_selected["cps_precision"]
+        cps_accuracy = daxss_data_selected["cps_accuracy"]
+    systematic_error_array = cps_accuracy / counts
 
     # Creating and Storing the FITS File
-    time_ISO_array = daxss_data_selected.time
+    time_ISO_array = counts.time
     #%% Create the array
     c1 = channel_number_array
     for i, time in enumerate(time_ISO_array):
@@ -231,6 +246,10 @@ def create_daxss_pha(
         hdul = fits.HDUList([dummy_primary, hdu_data])
         filename_fits = f"{out_dir}/{file_name}"
         hdul.writeto(filename_fits, overwrite=True)
+    if bin_size is not None:
+        return resampled
+    else:
+        return
 
 
 def read_tables(table_dir, tables_list=None):
@@ -492,6 +511,21 @@ class instrument:
         self.arf = create_arf_dataarray(arf_file_path)
         return self.arf
 
+def calc_shot_noise(da):
+    """
+    Calculates shot noise for resample from input array of individual shot noises.
+
+    Parameters
+    ----------
+    da : data array like
+
+    Returns
+    -------
+    TODO
+
+    """
+    err2 = da**2
+    return np.sqrt(err2.sum(dim="time"))
 
 class DaXSS_instrument(instrument):
 

@@ -179,6 +179,7 @@ def create_daxss_pha(
     hdr_data["HDUCLASS"] = "OGIP"
     hdr_data["LONGSTRN"] = "OGIP 1.0"
     hdr_data["HDUCLAS1"] = "SPECTRUM"
+    hdr_data["HDUCLAS3"] = "RATE"
     hdr_data["HDUVERS1"] = "1.2.1"
     hdr_data["HDUVERS"] = "1.2.1"
 
@@ -193,47 +194,56 @@ def create_daxss_pha(
     hdr_data["CORRFILE"] = "none"
     hdr_data["EXTNAME"] = "SPECTRUM"
     hdr_data["FILTER"] = "Be/Kapton"
-    hdr_data["EXPOSURE"] = "9"
+    # hdr_data["EXPOSURE"] = "9"
     hdr_data["DETCHANS"] = "1000"
     hdr_data["GROUPING"] = "0"
-    # CALDB = "/home/DAXSS_AED/Chianti_codes/xsm/caldb"
     channel_number_array = np.arange(1, 1001, dtype=np.int32)
     hdr_data["RESPFILE"] = rmf_path
     hdr_data["ANCRFILE"] = arf_path
     daxss_data_selected = data_array.isel(energy=slice(6, 1006))
     channel_number_array = np.arange(1, 1001, dtype=np.int32)
+
+    #Define columns
+
+    cps = daxss_data_selected["cps"]
+    statistical_error_array = daxss_data_selected["cps_precision"]
+    cps_accuracy = daxss_data_selected["cps_accuracy"]
+    cps_systematic = np.sqrt(cps_accuracy**2 - statistical_error_array**2)
+    integration_time = daxss_data_selected["integration_time"]
+
     if bin_size is not None:
-        resampled = daxss_data_selected["cps"].resample(time=bin_size)
-        counts = resampled.sum()
+        resampled = cps.resample(time=bin_size)
+        # resampled = counts.resample(time=bin_size,origin='start',closed="left",label="left") TODO upgrade to newer xarray
+        cps = resampled.sum()
         statistical_error_array = (
-            daxss_data_selected["cps_precision"]
+            statistical_error_array
             .resample(time=bin_size)
             .apply(calc_shot_noise)
         )
-        cps_accuracy = (
-            daxss_data_selected["cps_accuracy"].resample(time=bin_size).mean()
-        )  # This is probbly wrong. Need to figure out.TODO
-    else:
-        counts = daxss_data_selected["cps"]
-        statistical_error_array = daxss_data_selected["cps_precision"]
-        cps_accuracy = daxss_data_selected["cps_accuracy"]
-    systematic_error_array = cps_accuracy / counts
+        cps_systematic = (
+            cps_systematic.resample(time=bin_size).mean()
+        ) 
+        integration_time = integration_time.resample(time=bin_size).sum()
+
+    systematic_error_array = cps_systematic / cps
 
     # Creating and Storing the FITS File
-    time_ISO_array = counts.time
+    time_ISO_array = cps.time
     #%% Create the array
     c1 = channel_number_array
     for i, time in enumerate(time_ISO_array):
-        c2 = counts.isel(time=i)
+        c2 = cps.isel(time=i)
         c3 = statistical_error_array.isel(time=i)
-        c4 = systematic_error_array.isel(time=i)  # Accuracy = Systematic Error. TODO:
-        c4[np.isnan(c4)] = 0 # WHAT?! TODO:
+        c4 = systematic_error_array.isel(time=i)  
+        exposure = integration_time.isel(time=i).data
+        c4[np.isnan(c4)] = c4.mean() # WHAT?! TODO:
+        # c4[np.isnan(c4)] = 0 # WHAT?! TODO:
         file_name = f"DAXSS_{np.datetime_as_string(time.data)}.pha"
         hdr_dummy["FILENAME"] = file_name
         hdr_dummy["DATE"] = np.datetime_as_string(time.data)
         hdr_data["FILENAME"] = hdr_dummy["FILENAME"]
         hdr_data["DATE"] = hdr_dummy["DATE"]
-        # Data
+        hdr_data["EXPOSURE"] = float(exposure)    # Data
         hdu_data = fits.BinTableHDU.from_columns(
             [
                 fits.Column(name="CHANNEL", format="J", array=c1),
@@ -247,6 +257,7 @@ def create_daxss_pha(
         hdul = fits.HDUList([dummy_primary, hdu_data])
         filename_fits = f"{out_dir}/{file_name}"
         hdul.writeto(filename_fits, overwrite=True)
+
     if bin_size is not None:
         return resampled
     else:
@@ -316,7 +327,7 @@ def read_daxss_data(file_name):
             "cps_precision": (("time", "energy"), cps_precision),
             "irradiance": (("time", "energy"), irradiance),
             "irradiance_uncert": (("time", "energy"), irradiance_err),
-            "integration_time": (("time"), integration_time),
+        "integration_time": (("time"), integration_time),
         },
         coords={"time": dates, "energy": energy[0]},
     )

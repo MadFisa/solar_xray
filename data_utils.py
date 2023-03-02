@@ -212,7 +212,7 @@ def create_daxss_pha(
         )
         cps_accuracy = (
             daxss_data_selected["cps_accuracy"].resample(time=bin_size).mean()
-        )  # This is probbly wrong. Need to figure out.
+        )  # This is probbly wrong. Need to figure out.TODO
     else:
         counts = daxss_data_selected["cps"]
         statistical_error_array = daxss_data_selected["cps_precision"]
@@ -307,6 +307,7 @@ def read_daxss_data(file_name):
     cps = daxss_data.variables["SPECTRUM_CPS"]
     cps_err = daxss_data.variables["SPECTRUM_CPS_ACCURACY"]
     cps_precision = daxss_data.variables["SPECTRUM_CPS_PRECISION"]
+    integration_time = daxss_data['INTEGRATION_TIME']
 
     ds = xr.Dataset(
         data_vars={
@@ -315,6 +316,7 @@ def read_daxss_data(file_name):
             "cps_precision": (("time", "energy"), cps_precision),
             "irradiance": (("time", "energy"), irradiance),
             "irradiance_uncert": (("time", "energy"), irradiance_err),
+            "integration_time": (("time"), integration_time),
         },
         coords={"time": dates, "energy": energy[0]},
     )

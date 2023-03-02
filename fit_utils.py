@@ -12,6 +12,29 @@ import matplotlib.pyplot as plt
 import os
 import numpy as np
 
+def do_grouping(
+    file_list,
+    out_put_file_list,
+    cutoff_cps,
+):
+    """
+    The function will do gpb pha on files based on cutoff cps.
+
+    Parameters
+    ----------
+    file_list : list of files
+    cutoff_cps : cutoff cps
+    out_put_file_list : list of output file names.
+
+    Returns
+    -------
+    TODO
+
+    """
+    for in_file, out_file in zip(file_list, out_put_file_list):
+        command = f"grppha infile='{in_file}' outfile='!{out_file}' comm='GROUP MIN {cutoff_cps}&exit' "
+        os.system(command)
+
 class chisoth_2T:
     """class for running 2T isothermal models"""
     PHA_file_list = None
@@ -129,7 +152,7 @@ class chisoth_2T:
         out_dir = f"{self.flare_dir}/fit"
         if not os.path.isdir(out_dir):
             os.makedirs(out_dir)
-        par_vals = []
+        self.par_vals = []
         #%% Fit
         for PHA_file in self.PHA_file_list:
             f_name = os.path.basename(PHA_file).removesuffix(".pha")
@@ -162,7 +185,7 @@ class chisoth_2T:
                     temp_col.append(m_par_i.error[1])
                     temp_col.append(m_par_i.error[2])
             temp_col.append(xp.Fit.testStatistic)
-            par_vals.append(temp_col)
+            self.par_vals.append(temp_col)
             ##% Plot
             # Stuff required for plotting
             xp.Plot.device = "/xs"
@@ -199,12 +222,12 @@ class chisoth_2T:
             plt.close()
         #%% Make a data frame
         times = [
-            os.path.basename(PHA_file_i).removesuffix(".pha")[6:]
+            os.path.basename(PHA_file_i).removesuffix(".pha")[-29:]
             for PHA_file_i in self.PHA_file_list
         ]
         times = pd.to_datetime(times)
 
-        df = pd.DataFrame(par_vals, columns=self.colum_names, index=times)
+        df = pd.DataFrame(self.par_vals, columns=self.colum_names, index=times)
         df.to_csv(f"{out_dir}/results.csv")
         df.to_hdf(f"{out_dir}/results.h5", "results")
         return df

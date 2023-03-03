@@ -75,7 +75,7 @@ PHA_file_list = [
     orig_i.replace("/orig_pha/", "/grpd_pha/") for orig_i in orig_PHA_file_list
 ]
 
-cutoff_cps = 5
+cutoff_cps = 1
 if not os.path.isdir(f"{flare_dir}/grpd_pha/"):
     BIN = True
 if BIN:
@@ -92,5 +92,8 @@ FIP_elements = ["Mg", "Si", "S", "Ar", "Fe"]
 chiso.init_chisoth(FIP_elements)
 
 #%%Fit
+chiso.arf_files_list = [
+    orig_i.removesuffix(".pha") + (".arf") for orig_i in orig_PHA_file_list
+]
 
 df = chiso.fit(min_E=1.3)

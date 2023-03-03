@@ -43,6 +43,7 @@ class chisoth_2T:
     FIRST_TIME = True
     flare_dir = None
     colum_names = None
+    arf_files_list = None
     m = None
 
     def __init__(self, PHA_files, flare_dir):
@@ -142,9 +143,12 @@ class chisoth_2T:
 
         xp.AllData.clear()
         self.min_E = min_E
-        self.s = xp.Spectrum(self.PHA_file_list[0])
+        if self.arf_files_list is not None:
+            self.s = xp.Spectrum(self.PHA_file_list[0],arfFile=self.arf_files_list[0])
+        else:
+            self.s = xp.Spectrum(self.PHA_file_list[0])
         s = self.s
-        s.ignore(f"**-{min_E} 10.0-**")
+        s.ignore(f"**-{min_E} 15.0-**")
 
         m = self.m
         m.setPars(self.temperature_unfreeze_dict)
@@ -171,18 +175,24 @@ class chisoth_2T:
         xp.AllData.clear()
         self.par_vals = []
         #%% Fit
-        for PHA_file in self.PHA_file_list:
+        for i,PHA_file in enumerate(self.PHA_file_list):
             f_name = os.path.basename(PHA_file).removesuffix(".pha")
             xp.AllData.clear()
             logFile = xp.Xset.openLog(f"{out_dir}/{f_name}.log")
-            s = xp.Spectrum(PHA_file)
-            # spectra = np.array(s.values)
-            # cutoff_idx = np.where(spectra < 2 * cutoff_cps)[0][0]
-            # cutoff_energy = s.energies[cutoff_idx][1]
+            if self.arf_files_list is not None:
+                self.s = xp.Spectrum(PHA_file,arfFile=self.arf_files_list[i])
+            else:
+                self.s = xp.Spectrum(PHA_file)
+            s = self.s
             xp.Fit.statMethod = "chi"
             # s.ignore(f"**-1.0 {cutoff_idx}-**")
-            s.notice('**-**')
-            s.ignore(f"**-{min_E} 4.2-**")
+            # s.notice('{min_E}-**')
+            s.ignore(f"**-{min_E}")
+            # spectra = np.array(s.values)
+            # cutoff_idx = np.where(spectra < 0.5)[0][0]
+            # cutoff_energy = s.energies[cutoff_idx][1]
+            # s.ignore(f"{cutoff_energy}-**")
+            s.ignore(f"10.0-**")
             # spectra = np.array(s.values)
             xp.Fit.renorm()
             xp.Fit.perform()

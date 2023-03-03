@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import os
 import numpy as np
 
-def do_grouping(
+def do_grppha(
     file_list,
     out_put_file_list,
     cutoff_cps,
@@ -35,6 +35,7 @@ def do_grouping(
         command = f"grppha infile='{in_file}' outfile='!{out_file}' comm='GROUP MIN {cutoff_cps}&exit' "
         os.system(command)
 
+
 class chisoth_2T:
     """class for running 2T isothermal models"""
     PHA_file_list = None
@@ -44,16 +45,17 @@ class chisoth_2T:
     colum_names = None
     m = None
 
-    def __init__(self,PHA_files,flare_dir):
+    def __init__(self, PHA_files, flare_dir):
         """
         Initialises few things for xspec
 
         Parameters
         ----------
         PHA_files : list of PHA files to perform fit on
-        flare_dir : directory to save results to 
+        flare_dir : directory to save results to
 
         """
+        PHA_files.sort()
         self.PHA_file_list = PHA_files
         self.flare_dir = flare_dir
         xp.AllModels.lmod("chspec", dirPath="/home/sac/chspec/")
@@ -65,7 +67,7 @@ class chisoth_2T:
         xp.Plot.xLog = False
         xp.Xset.parallel.leven = 6
 
-    def init_chisoth(self,FIP_elements):
+    def init_chisoth(self, FIP_elements):
         """
         Initialises 2T chisothermal model with elements in FIP_elements.
 
@@ -92,14 +94,15 @@ class chisoth_2T:
                 self.colum_names.append(fit_pars_i + suffix_i + "_LB")
                 self.colum_names.append(fit_pars_i + suffix_i + "_err_code")
         self.colum_names.append("Chi")
+        self.colum_names.append("red_Chi")
 
         self.m = xp.Model("chisoth + chisoth", "flare")
         m = self.m
         # Dictionary that will be used to unfreeze parameters
         self.FIP_unfreeze_dict = {}
         self.temperature_unfreeze_dict = {
-            eval("m.chisoth.logT.index"): ",0.001,,,,,",
-            eval("m.chisoth_2.logT.index"): ",0.001,,,,,",
+            eval("m.chisoth.logT.index"): "6.8,0.01,,,,,",
+            eval("m.chisoth_2.logT.index"): "7.2,0.01,,,,,",
         }
 
         self.other_par_index = []
@@ -117,41 +120,55 @@ class chisoth_2T:
             par_2.link = par_1
             idx_temp = eval(f"m.chisoth.{FIP_el}.index")
             self.FIP_par_index.append(idx_temp)
-            self.FIP_unfreeze_dict[idx_temp] = ",0.1,,,,,"
+            self.FIP_unfreeze_dict[idx_temp] = ",0.01,,,,,"
 
         self.all_par_index = self.other_par_index + self.FIP_par_index
-        self.err_string = "flare:" + "".join(
+        self.err_string = "maxmimum 2.706 flare:" + ",".join(
             [str(i) + "," for i in self.all_par_index]
         )  # error string to be used later with xspec err command
 
-    def fit(self):
+    def fit(self, min_E):
         """
         fits the data iwth models.
 
         Parameters
         ----------
-        f : TODO
+        min_E : minimum energy cut off for fitting
 
         Returns
         -------
         df, pandas dataframe with results
-        
-
         """
+
         xp.AllData.clear()
+        self.min_E = min_E
         self.s = xp.Spectrum(self.PHA_file_list[0])
         s = self.s
-        s.ignore("**-1.0 6.0-**")
-        xp.Fit.renorm()
+        s.ignore(f"**-{min_E} 10.0-**")
+
         m = self.m
         m.setPars(self.temperature_unfreeze_dict)
+        xp.Fit.renorm()
         xp.Fit.perform()
         xp.Fit.renorm()
+        xp.Fit.perform()
+        n = 0
+        while xp.Fit.testStatistic > 2000 and n < 5:
+            n += 1
+            xp.Fit.renorm()
+            xp.Fit.perform()
         m.setPars(self.FIP_unfreeze_dict)
-
+        n = 0
+        while xp.Fit.testStatistic > 1000 and n < 5:
+            n += 1
+            xp.Fit.renorm()
+            xp.Fit.perform()
+        xp.Fit.renorm()
+        xp.Fit.perform()
         out_dir = f"{self.flare_dir}/fit"
         if not os.path.isdir(out_dir):
             os.makedirs(out_dir)
+        xp.AllData.clear()
         self.par_vals = []
         #%% Fit
         for PHA_file in self.PHA_file_list:
@@ -164,13 +181,15 @@ class chisoth_2T:
             # cutoff_energy = s.energies[cutoff_idx][1]
             xp.Fit.statMethod = "chi"
             # s.ignore(f"**-1.0 {cutoff_idx}-**")
-            s.ignore("**-1.0 6.0-**")
+            s.notice('**-**')
+            s.ignore(f"**-{min_E} 4.2-**")
             # spectra = np.array(s.values)
             xp.Fit.renorm()
             xp.Fit.perform()
             n = 0
-            while xp.Fit.testStatistic > 350 and n < 5:
+            while xp.Fit.testStatistic > 150 and n < 5:
                 n += 1
+                xp.Fit.renorm()
                 xp.Fit.perform()
             # Finding errors
             xp.Fit.error(self.err_string)
@@ -185,10 +204,12 @@ class chisoth_2T:
                     temp_col.append(m_par_i.error[1])
                     temp_col.append(m_par_i.error[2])
             temp_col.append(xp.Fit.testStatistic)
+            temp_col.append(xp.Fit.testStatistic/xp.Fit.dof)
             self.par_vals.append(temp_col)
             ##% Plot
             # Stuff required for plotting
-            xp.Plot.device = "/xs"
+            # xp.Plot.device = "/xs"
+            xp.Plot.device = "/xw"
             # xp.Plot("data", "resid")
             xp.Plot("data", "delchi")
             x = xp.Plot.x()

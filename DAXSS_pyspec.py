@@ -24,7 +24,7 @@ DAXSS_file = "./data/daxss_solarSXR_level1_2022-02-14-mission_v2.0.0.ncdf"
 observation_file = "./flare_filtering/data/flare_observation.h5"
 
 
-def create_pha_files(flare_num, bin_size="27S"):
+def create_pha_files(flare_num, bin_size=None):
     """
     creates pha files from data and flare_number
     Parameters
@@ -90,12 +90,13 @@ CREATE = True
 # Create initial PHA files
 if CREATE:
     shutil.rmtree(f"{flare_dir}/orig_pha/", ignore_errors=True)
-    resamp = create_pha_files(flare_num)
+    resamp = create_pha_files(flare_num,bin_size='27S')
 
 # Run grppha on files to group
 orig_PHA_file_list = glob.glob(f"{flare_dir}/orig_pha/*.pha")
+orig_PHA_file_list.sort()
 PHA_file_list = [
-    orig_i.replace("/orig_pha/", "/grpd_pha/") for orig_i in orig_PHA_file_list
+orig_i.replace("/orig_pha/", "/grpd_pha/") for orig_i in orig_PHA_file_list
 ]
 
 BIN = True
@@ -104,6 +105,8 @@ if BIN:
     shutil.rmtree(f"{flare_dir}/grpd_pha/", ignore_errors=True)
     os.makedirs(f"{flare_dir}/grpd_pha")
     do_grouping(orig_PHA_file_list, PHA_file_list, cutoff_cps)
+
+# PHA_file_list = orig_PHA_file_list
 #%% Initialise
 xp.AllModels.lmod("chspec", dirPath="/home/sac/chspec/")
 xp.AllData.clear()
@@ -166,6 +169,7 @@ err_string = "flare:" + "".join(
 # unfreeze rest.
 xp.AllData.clear()
 s = xp.Spectrum(PHA_file_list[0])
+s.ignore("**-1.0 6.0-**")
 xp.Fit.renorm()
 m.setPars(temperature_unfreeze_dict)
 xp.Fit.perform()
@@ -182,8 +186,12 @@ for PHA_file in PHA_file_list:
     xp.AllData.clear()
     logFile = xp.Xset.openLog(f"{out_dir}/{f_name}.log")
     s = xp.Spectrum(PHA_file)
+    spectra = np.array(s.values)
+    cutoff_idx = np.where(spectra < 2 * cutoff_cps)[0][0]
+    cutoff_energy = s.energies[cutoff_idx][1]
     xp.Fit.statMethod = "chi"
-    s.ignore("**-1.0 10.0-**")
+    # s.ignore(f"**-1.0 {cutoff_idx}-**")
+    s.ignore("**-1.0 6.0-**")
     spectra = np.array(s.values)
     xp.Fit.renorm()
     xp.Fit.perform()

@@ -1,3 +1,12 @@
+#!/usr/bin/env python3
+"""
+File: DAXSS_pyspec.py
+Author: Asif Mohamed Mandayapuram
+Email: asifmp97@gmail.com
+Github: github/MadFisa
+Description: Code to analyse DAXSS flares.
+"""
+
 import glob
 import os
 import shutil

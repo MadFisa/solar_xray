@@ -6,11 +6,13 @@ Email: asifmp97@gmail.com
 Github: github/MadFisa
 Description: Module containing functions for fitting data in XSPEC for solar flares
 """
-import xspec as xp
-import pandas as pd
-import matplotlib.pyplot as plt
 import os
+
+import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+import xspec as xp
+
 
 def do_grppha(
     file_list,
@@ -38,6 +40,7 @@ def do_grppha(
 
 class chisoth_2T:
     """class for running 2T isothermal models"""
+
     PHA_file_list = None
     FIP_elements = None
     FIRST_TIME = True
@@ -59,7 +62,7 @@ class chisoth_2T:
         PHA_files.sort()
         self.PHA_file_list = PHA_files
         self.flare_dir = flare_dir
-        xp.AllModels.lmod("chspec", dirPath="/home/sac/chspec/")
+        xp.AllModels.lmod("chspec", dirPath=f"{os.path.expanduser('~')}/chspec/")
         xp.AllData.clear()
         xp.AllModels.clear()
         xp.Fit.query = "no"  # No asking for uesr confirmation while fitting
@@ -144,7 +147,7 @@ class chisoth_2T:
         xp.AllData.clear()
         self.min_E = min_E
         if self.arf_files_list is not None:
-            self.s = xp.Spectrum(self.PHA_file_list[0],arfFile=self.arf_files_list[0])
+            self.s = xp.Spectrum(self.PHA_file_list[0], arfFile=self.arf_files_list[0])
         else:
             self.s = xp.Spectrum(self.PHA_file_list[0])
         s = self.s
@@ -175,12 +178,12 @@ class chisoth_2T:
         xp.AllData.clear()
         self.par_vals = []
         #%% Fit
-        for i,PHA_file in enumerate(self.PHA_file_list):
+        for i, PHA_file in enumerate(self.PHA_file_list):
             f_name = os.path.basename(PHA_file).removesuffix(".pha")
             xp.AllData.clear()
             logFile = xp.Xset.openLog(f"{out_dir}/{f_name}.log")
             if self.arf_files_list is not None:
-                self.s = xp.Spectrum(PHA_file,arfFile=self.arf_files_list[i])
+                self.s = xp.Spectrum(PHA_file, arfFile=self.arf_files_list[i])
             else:
                 self.s = xp.Spectrum(PHA_file)
             s = self.s
@@ -214,7 +217,7 @@ class chisoth_2T:
                     temp_col.append(m_par_i.error[1])
                     temp_col.append(m_par_i.error[2])
             temp_col.append(xp.Fit.testStatistic)
-            temp_col.append(xp.Fit.testStatistic/xp.Fit.dof)
+            temp_col.append(xp.Fit.testStatistic / xp.Fit.dof)
             self.par_vals.append(temp_col)
             ##% Plot
             # Stuff required for plotting
@@ -235,7 +238,9 @@ class chisoth_2T:
 
             fig, ax = plt.subplots(nrows=2, ncols=1, sharex=True, figsize=(16, 9))
             ax[0].plot(x, model, drawstyle="steps-mid")
-            ax[0].errorbar(x, y, xerr=x_err, yerr=y_err, linestyle="None", fmt="k", alpha=0.6)
+            ax[0].errorbar(
+                x, y, xerr=x_err, yerr=y_err, linestyle="None", fmt="k", alpha=0.6
+            )
             ax[0].set_yscale("log")
             ax[0].set_ylim(bottom=1)
             ax[0].set_ylabel("counts/s/keV")
@@ -245,7 +250,13 @@ class chisoth_2T:
                 max(chix),
             )
             ax[1].errorbar(
-                chix, chi, xerr=chix_err, yerr=chi_err, linestyle="None", fmt="k", alpha=0.6
+                chix,
+                chi,
+                xerr=chix_err,
+                yerr=chi_err,
+                linestyle="None",
+                fmt="k",
+                alpha=0.6,
             )
             ax[1].set_ylabel("(data-model)/error")
             fig.supxlabel("Energy (keV)")
@@ -262,4 +273,3 @@ class chisoth_2T:
         df.to_csv(f"{out_dir}/results.csv")
         df.to_hdf(f"{out_dir}/results.h5", "results")
         return df
-

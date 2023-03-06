@@ -22,8 +22,9 @@ plt.rcParams["font.size"] = 24
 date_formatter = DateFormatter("%H:%M")
 
 # define data
+instrument='xsm'
 flare_num = 7
-flare_dir = f"./data/pha/flare_num_{flare_num}/daxss"
+flare_dir = f"./data/pha/flare_num_{flare_num}/{instrument}"
 out_dir = f"{flare_dir}/fit"
 results = f'{out_dir}/results.csv'
 # results = f'{out_dir}/results.h5'
@@ -36,15 +37,14 @@ if not os.path.isdir(fig_dir):
 observation_table = pd.read_hdf(observation_file, "obs")
 df = pd.read_csv(results,parse_dates=True,index_col=0)
 # df = pd.read_hdf(results,parse_dates=True)
-
-net_counts = observation_table.loc[7]['daxss_lc']
+net_counts = observation_table.loc[7][f'{instrument}_lc']
 times = df.index
 flare = observation_table.loc[flare_num]
 time_beg = flare["event_starttime"]
 time_end = flare["event_endtime"]
 peak_time = flare["event_peaktime"]
 flare_class = flare["fl_goescls"]
-daxss_lc = flare["daxss_lc"]
+daxss_lc = flare[f"{instrument}_lc"]
 
 #%% Plot Individual
 pars = df.columns[0:-1:4]

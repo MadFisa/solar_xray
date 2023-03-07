@@ -71,7 +71,7 @@ class chisoth_2T:
         xp.Plot.xLog = False
         xp.Xset.parallel.leven = 6
 
-    def init_chisoth(self, FIP_elements):
+    def init_chisoth(self, FIP_elements,error_sigma=2.706):
         """
         Initialises 2T chisothermal model with elements in FIP_elements.
 
@@ -127,17 +127,19 @@ class chisoth_2T:
             self.FIP_unfreeze_dict[idx_temp] = ",0.01,,,,,"
 
         self.all_par_index = self.other_par_index + self.FIP_par_index
-        self.err_string = "maxmimum 2.706 flare:" + ",".join(
+        self.err_string = f"maxmimum {error_sigma} flare:" + ",".join(
             [str(i) + "," for i in self.all_par_index]
         )  # error string to be used later with xspec err command
+        print(f"error string is {self.err_string}")
 
-    def fit(self, min_E):
+    def fit(self, min_E,max_E=10.0):
         """
         fits the data iwth models.
 
         Parameters
         ----------
         min_E : minimum energy cut off for fitting
+        max_E : maxmimum energy cut off for fitting
 
         Returns
         -------
@@ -195,8 +197,13 @@ class chisoth_2T:
             # cutoff_idx = np.where(spectra < 0.5)[0][0]
             # cutoff_energy = s.energies[cutoff_idx][1]
             # s.ignore(f"{cutoff_energy}-**")
-            s.ignore(f"10.0-**")
+            s.ignore(f"{max_E}-**")
             # spectra = np.array(s.values)
+            m.setPars(self.temperature_unfreeze_dict)
+            xp.Fit.renorm()
+            xp.Fit.perform()
+            xp.Fit.renorm()
+            xp.Fit.perform()
             xp.Fit.renorm()
             xp.Fit.perform()
             n = 0

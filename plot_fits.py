@@ -62,7 +62,7 @@ for par_i in pars[:2]:
 plt.legend()
 plt.xlabel("Time")
 plt.ylabel("log(T) (MK)")
-plt.title(f"flare on {peak_time}")
+plt.title(f"flare {flare_num} on {peak_time}")
 ax2 = plt.twinx()
 ax2.grid(visible=False)
 net_counts.plot.line("o--", alpha=0.6, color="black", ax=ax2)
@@ -86,7 +86,7 @@ for par_i in pars[2:4]:
 plt.legend()
 plt.xlabel("Time")
 plt.ylabel("Emission Measure $(10^{46} cm^{-3})$")
-plt.title(f"flare on {peak_time}")
+plt.title(f"flare {flare_num} on {peak_time}")
 ax2 = plt.twinx()
 ax2.grid(visible=False)
 net_counts.plot.line("o--", alpha=0.6, color="black", ax=ax2)
@@ -109,7 +109,7 @@ for par_i in pars[4::2]:
     # plt.errorbar(times, df[par_i], elinewidth=1, fmt="o", linestyle="", label=par_i)
     plt.ylabel(par_i)
     plt.xlabel("Time")
-    plt.title(f"flare on {peak_time}")
+    plt.title(f"flare {flare_num} on {peak_time}")
     ax2 = plt.twinx()
     ax2.grid(visible=False)
     net_counts.plot.line("o--", alpha=0.6, color="black", ax=ax2)
@@ -130,7 +130,7 @@ for par_i in pars[:4]:
     # plt.errorbar(times, df[par_i], elinewidth=1, fmt="o", linestyle="", label=par_i)
     plt.ylabel(par_i)
     plt.xlabel("Time")
-    plt.title(f"flare on {peak_time}")
+    plt.title(f"flare {flare_num} on {peak_time}")
     ax2 = plt.twinx()
     ax2.grid(visible=False)
     net_counts.plot.line("o--", alpha=0.6, color="black", ax=ax2)
@@ -138,3 +138,26 @@ for par_i in pars[:4]:
     plt.gca().xaxis.set_major_formatter(date_formatter)
     plt.tight_layout()
     plt.savefig(f"{fig_dir}/{par_i}.png")
+
+#%% Plot reduced chi2
+par_i='red_Chi'
+plt.figure(figsize=(16, 9))
+par_i_UB = par_i.replace("values", "UB")
+par_i_LB = par_i.replace("values", "LB")
+UB_err = df[par_i_UB] - df[par_i]
+LB_err = df[par_i] - df[par_i_LB]
+plt.plot(
+    times, df[par_i] , '--o', label=par_i
+)
+# plt.errorbar(times, df[par_i], elinewidth=1, fmt="o", linestyle="", label=par_i)
+plt.ylabel(par_i)
+plt.xlabel("Time")
+plt.title(f"flare {flare_num} on {peak_time}")
+ax2 = plt.twinx()
+ax2.grid(visible=False)
+net_counts.plot.line("o--", alpha=0.6, color="black", ax=ax2)
+ax2.set_ylabel("Photon flux (Counts/second)")
+plt.gca().xaxis.set_major_formatter(date_formatter)
+plt.tight_layout()
+plt.savefig(f"{fig_dir}/{par_i}.png")
+plt.close('all')

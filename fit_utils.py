@@ -157,7 +157,7 @@ class chisoth_2T:
                xp.AllData(i+1).response.arf = arf_files[i]
 
 
-    def fit(self, min_E,max_E=10.0):
+    def fit(self, min_E,max_E=10.0,cutoff_cps=1.0):
         """
         fits the data iwth models.
 
@@ -221,6 +221,15 @@ class chisoth_2T:
             # cutoff_energy = s.energies[cutoff_idx][1]
             # s.ignore(f"{cutoff_energy}-**")
             xp.AllData.ignore(f"{max_E}-**")
+            # Implementing dynamic maximum cut off
+            for i in range(xp.AllData.nSpectra):
+                # temp_max_E = max_E
+                s = xp.AllData(i+1)
+                counts = np.array(s.values)
+                cutoff_idx = np.where(counts<cutoff_cps)[0][0]
+                cutoff_energy = s.energies[cutoff_idx][1]
+                if cutoff_energy < max_E:
+                    s.ignore(f"{cutoff_energy}-**")
             # spectra = np.array(s.values)
             m.setPars(self.temperature_unfreeze_dict)
             xp.Fit.renorm()

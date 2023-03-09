@@ -9,6 +9,7 @@ Description: Code to analyse DAXSS flares.
 
 
 import os
+import shutil
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -34,16 +35,17 @@ for flare_num in flares:
     daxss_out_dir = f"{flare_dir}/daxss"
     xsm_out_dir = f"{flare_dir}/xsm"
     simult_out_dir = f"{flare_dir}/simult"
-    if not os.path.isdir(daxss_out_dir):
+    if not os.path.isfile(f"{daxss_out_dir}/fit/results.csv"):
         print(f"----------Fitting for flare {flare_num} for daxss----------")
-        df_daxss = fit_daxss(
-            flare_num=flare_num, FIP_elements=FIP_elements, CREATE=True, BIN=True
-        )
+        shutil.rmtree(f"{daxss_out_dir}/fit", ignore_errors=True)
+        df_daxss = fit_daxss(flare_num=flare_num, FIP_elements=FIP_elements)
     plot_individual(instrument="daxss", flare_num=flare_num)
-    if not os.path.isdir(xsm_out_dir):
+    if not os.path.isfile(f"{xsm_out_dir}/fit/results.csv"):
         print(f"----------Fitting for flare {flare_num} for xsm--------------")
+        shutil.rmtree(f"{xsm_out_dir}/fit", ignore_errors=True)
         df_xsm = fit_xsm(
-            flare_num=flare_num, FIP_elements=FIP_elements, CREATE=True, BIN=True
+            flare_num=flare_num,
+            FIP_elements=FIP_elements,
         )
     plot_individual(instrument="xsm", flare_num=flare_num)
     # if not os.path.isdir(simult_out_dir):

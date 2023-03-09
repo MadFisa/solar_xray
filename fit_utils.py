@@ -49,18 +49,19 @@ class chisoth_2T:
     arf_files_list = None
     m = None
 
-    def __init__(self, PHA_files, flare_dir):
+    def __init__(self, PHA_files, arf_file_list, flare_dir):
         """
         Initialises few things for xspec
 
         Parameters
         ----------
         PHA_files : list of PHA files to perform fit on
+        arf_files : arf files corresponding to the PHA_files
         flare_dir : directory to save results to
 
         """
-        PHA_files.sort()
         self.PHA_file_list = PHA_files
+        self.arf_file_list = arf_file_list
         self.flare_dir = flare_dir
         xp.AllModels.lmod("chspec", dirPath=f"{os.path.expanduser('~')}/chspec/")
         xp.AllData.clear()
@@ -132,6 +133,30 @@ class chisoth_2T:
         )  # error string to be used later with xspec err command
         print(f"error string is {self.err_string}")
 
+    def load_spectra(self,file_idx):
+        """TODO: Docstring for load_spectra.
+
+        Parameters
+        ----------
+        f : TODO
+
+        Returns
+        -------
+        TODO
+
+        """
+        PHA_files = self.PHA_file_list[file_idx]
+        arf_files = self.arf_file_list[file_idx]
+        if type(PHA_files) != list:
+            PHA_files = [PHA_files]
+            arf_files = [arf_files]
+
+        for i,spectra_i in enumerate(PHA_files):
+            xp.AllData += spectra_i
+            if arf_files[i] != 'USE_DEFAULT':
+               xp.AllData(i+1).response.arf = arf_files[i]
+
+
     def fit(self, min_E,max_E=10.0):
         """
         fits the data iwth models.
@@ -148,12 +173,9 @@ class chisoth_2T:
 
         xp.AllData.clear()
         self.min_E = min_E
-        if self.arf_files_list is not None:
-            self.s = xp.Spectrum(self.PHA_file_list[0], arfFile=self.arf_files_list[0])
-        else:
-            self.s = xp.Spectrum(self.PHA_file_list[0])
-        s = self.s
-        s.ignore(f"**-{min_E} 15.0-**")
+        self.max_E = min_E
+        self.load_spectra(0)
+        xp.AllData.ignore(f"**-{min_E} 15.0-**")
 
         m = self.m
         m.setPars(self.temperature_unfreeze_dict)
@@ -179,25 +201,26 @@ class chisoth_2T:
             os.makedirs(out_dir)
         xp.AllData.clear()
         self.par_vals = []
+        PHA_file_array = np.array(self.PHA_file_list)
+        if PHA_file_array.ndim == 1:
+            file_names = [os.path.basename(PHA_file).removesuffix(".pha") for PHA_file in PHA_file_array]
+        else :
+            file_names = ["simult" + os.path.basename(PHA_file).removesuffix(".pha")[-30:] for PHA_file in PHA_file_array[:,0]]
+
         #%% Fit
-        for i, PHA_file in enumerate(self.PHA_file_list):
-            f_name = os.path.basename(PHA_file).removesuffix(".pha")
+        for i, f_name in enumerate(file_names):
             xp.AllData.clear()
             logFile = xp.Xset.openLog(f"{out_dir}/{f_name}.log")
-            if self.arf_files_list is not None:
-                self.s = xp.Spectrum(PHA_file, arfFile=self.arf_files_list[i])
-            else:
-                self.s = xp.Spectrum(PHA_file)
-            s = self.s
+            self.load_spectra(i)
             xp.Fit.statMethod = "chi"
             # s.ignore(f"**-1.0 {cutoff_idx}-**")
             # s.notice('{min_E}-**')
-            s.ignore(f"**-{min_E}")
+            xp.AllData.ignore(f"**-{min_E}")
             # spectra = np.array(s.values)
             # cutoff_idx = np.where(spectra < 0.5)[0][0]
             # cutoff_energy = s.energies[cutoff_idx][1]
             # s.ignore(f"{cutoff_energy}-**")
-            s.ignore(f"{max_E}-**")
+            xp.AllData.ignore(f"{max_E}-**")
             # spectra = np.array(s.values)
             m.setPars(self.temperature_unfreeze_dict)
             xp.Fit.renorm()

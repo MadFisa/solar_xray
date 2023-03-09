@@ -11,13 +11,10 @@ import os
 import shutil
 
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
-import xspec as xp
 
 from data_utils import create_daxss_pha, read_daxss_data
 from fit_utils import chisoth_2T, do_grppha
-from plot_fits import plot_individual
 
 plt.style.use("fivethirtyeight")
 
@@ -40,7 +37,7 @@ def create_pha_files(flare_num, bin_size=None):
 
     """
     observation_table = pd.read_hdf(observation_file, "obs")
-    flare_dir = f"./data/pha/flare_num_{flare_num}/xsm"
+    flare_dir = f"./data/pha/flare_num_{flare_num}/daxss"
     #%% Chosse flare
     flare = observation_table.loc[flare_num]
     time_beg = flare["event_starttime"]
@@ -71,6 +68,7 @@ def fit_daxss(
     cutoff_cps=1,
     min_E=1.3,
     max_E=10.0,
+    bin_size="27S"
 ):
     """
     function to daxss fitting
@@ -96,10 +94,8 @@ def fit_daxss(
         CREATE = True
     if CREATE:
         shutil.rmtree(f"{flare_dir}/orig_pha/", ignore_errors=True)
-        resamp = create_pha_files(flare_num, bin_size="27S")
-    if CREATE:
-        shutil.rmtree(f"{flare_dir}/orig_pha/", ignore_errors=True)
-        resamp = create_pha_files(flare_num, bin_size="27S")
+        # os.makedirs(f"{flare_dir}/orig_pha/")
+        resamp = create_pha_files(flare_num, bin_size=bin_size)
 
     # Run grppha on files to group
     orig_PHA_file_list = glob.glob(f"{flare_dir}/orig_pha/*.pha")
@@ -119,18 +115,12 @@ def fit_daxss(
     # PHA_file_list = orig_PHA_file_list
     # #%% Initialise
 
-    chiso = chisoth_2T(PHA_file_list, flare_dir)
-    chiso.init_chisoth(FIP_elements, error_sigma=4.00)
+    arf_file_list = ["USE_DEFAULT"] * len(PHA_file_list)
+    chiso = chisoth_2T(PHA_file_list, arf_file_list, flare_dir)
+    chiso.init_chisoth(FIP_elements, error_sigma=6.00)
 
     #%%Fit
 
     df = chiso.fit(min_E, max_E)
     return df
 
-
-flare_num = 42
-FIP_elements = ["Mg", "Si", "S", "Ar", "Ca", "Fe"]
-df = fit_daxss(flare_num=flare_num, FIP_elements=FIP_elements)
-
-#%% plot
-plot_individual(instrument="daxss", flare_num=flare_num)

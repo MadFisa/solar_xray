@@ -228,14 +228,15 @@ def create_daxss_pha(
     systematic_error_array = cps_systematic / cps
 
     # Creating and Storing the FITS File
+    cps = cps.dropna(dim='time',how='all')
     time_ISO_array = cps.time
     #%% Create the array
     c1 = channel_number_array
-    for i, time in enumerate(time_ISO_array):
-        c2 = cps.isel(time=i)
-        c3 = statistical_error_array.isel(time=i)
-        c4 = systematic_error_array.isel(time=i)  
-        exposure = integration_time.isel(time=i).data
+    for time in time_ISO_array:
+        c2 = cps.sel(time=time)
+        c3 = statistical_error_array.sel(time=time)
+        c4 = systematic_error_array.sel(time=time)  
+        exposure = integration_time.sel(time=time).data
         c4[np.isnan(c4)] = c4.mean() # WHAT?! TODO:
         # c4[np.isnan(c4)] = 0 # WHAT?! TODO:
         file_name = f"DAXSS_{np.datetime_as_string(time.data)}.pha"

@@ -4,7 +4,7 @@ File: DAXSS_pyspec.py
 Author: Asif Mohamed Mandayapuram
 Email: asifmp97@gmail.com
 Github: github/MadFisa
-Description: Code to analyse DAXSS flares.
+Description: Code to analyse XSM flares.
 """
 
 import glob
@@ -58,8 +58,11 @@ def create_pha_files(flare_num, bin_size):
         outfile = (
             f"{flare_dir}/orig_pha/XSM_{np.datetime_as_string(time_i.to_numpy())}.pha"
         )
+        arffile = (
+            f"{flare_dir}/orig_pha/XSM_{np.datetime_as_string(time_i.to_numpy())}.arf"
+        )
 
-        command = f"xsmgenspec l1file={l1file} specfile={outfile} spectype='time-integrated' hkfile={hkfile} safile={safile} gtifile={gtifile} tstart={met_i_beg} tstop={met_i_end} "
+        command = f"xsmgenspec l1file={l1file} specfile={outfile} spectype='time-integrated' hkfile={hkfile} safile={safile} gtifile={gtifile} arffile={arffile} tstart={met_i_beg} tstop={met_i_end} "
         os.system(command)
 
 
@@ -115,21 +118,12 @@ def fit_xsm(
 
     # #%% Initialise
 
-    chiso = chisoth_2T(PHA_file_list, flare_dir)
-    chiso.init_chisoth(FIP_elements, error_sigma=4.00)
-
-    #%%Fit
-    chiso.arf_files_list = [
+    arf_file_list = [
         orig_i.removesuffix(".pha") + (".arf") for orig_i in orig_PHA_file_list
     ]
+    chiso = chisoth_2T(PHA_file_list, arf_file_list, flare_dir)
+    chiso.init_chisoth(FIP_elements, error_sigma=6.00)
+
+    #%%Fit
     df = chiso.fit(min_E, max_E)
     return df
-
-
-flare_num = 23
-
-FIP_elements = ["Mg", "Si", "S", "Ar", "Fe"]
-df = fit_xsm(flare_num=flare_num, FIP_elements=FIP_elements)
-
-#%% plot
-plot_individual(instrument="xsm", flare_num=flare_num)

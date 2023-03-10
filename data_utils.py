@@ -141,7 +141,7 @@ def create_daxss_pha(
     arf_path="minxss_fm3_ARF.fits",
     rmf_path="minxss_fm3_RMF.fits",
     out_dir="./",
-    bin_size=None
+    bin_size=None,
 ):
     """
     Creates PHA files for datarray passed of DAXSS data.
@@ -203,48 +203,44 @@ def create_daxss_pha(
     daxss_data_selected = data_array.isel(energy=slice(6, 1006))
     channel_number_array = np.arange(1, 1001, dtype=np.int32)
 
-    #Define columns
+    # Define columns
 
     cps = daxss_data_selected["cps"]
     statistical_error_array = daxss_data_selected["cps_precision"]
     cps_accuracy = daxss_data_selected["cps_accuracy"]
-    cps_systematic = np.sqrt(cps_accuracy**2 - statistical_error_array**2)
+    cps_systematic = np.sqrt(cps_accuracy ** 2 - statistical_error_array ** 2)
     integration_time = daxss_data_selected["integration_time"]
 
     if bin_size is not None:
         resampled = cps.resample(time=bin_size)
         # resampled = counts.resample(time=bin_size,origin='start',closed="left",label="left") TODO upgrade to newer xarray
         cps = resampled.sum()
-        statistical_error_array = (
-            statistical_error_array
-            .resample(time=bin_size)
-            .apply(calc_shot_noise)
+        statistical_error_array = statistical_error_array.resample(time=bin_size).apply(
+            calc_shot_noise
         )
-        cps_systematic = (
-            cps_systematic.resample(time=bin_size).mean()
-        ) 
+        cps_systematic = cps_systematic.resample(time=bin_size).mean()
         integration_time = integration_time.resample(time=bin_size).sum()
 
     systematic_error_array = cps_systematic / cps
 
     # Creating and Storing the FITS File
-    cps = cps.dropna(dim='time',how='all')
+    cps = cps.dropna(dim="time", how="all")
     time_ISO_array = cps.time
     #%% Create the array
     c1 = channel_number_array
     for time in time_ISO_array:
         c2 = cps.sel(time=time)
         c3 = statistical_error_array.sel(time=time)
-        c4 = systematic_error_array.sel(time=time)  
+        c4 = systematic_error_array.sel(time=time)
         exposure = integration_time.sel(time=time).data
-        c4[np.isnan(c4)] = c4.mean() # WHAT?! TODO:
+        c4[np.isnan(c4)] = c4.mean()  # WHAT?! TODO:
         # c4[np.isnan(c4)] = 0 # WHAT?! TODO:
         file_name = f"DAXSS_{np.datetime_as_string(time.data)}.pha"
         hdr_dummy["FILENAME"] = file_name
         hdr_dummy["DATE"] = np.datetime_as_string(time.data)
         hdr_data["FILENAME"] = hdr_dummy["FILENAME"]
         hdr_data["DATE"] = hdr_dummy["DATE"]
-        hdr_data["EXPOSURE"] = float(exposure)    # Data
+        hdr_data["EXPOSURE"] = float(exposure)  # Data
         hdu_data = fits.BinTableHDU.from_columns(
             [
                 fits.Column(name="CHANNEL", format="J", array=c1),
@@ -319,7 +315,7 @@ def read_daxss_data(file_name):
     cps = daxss_data.variables["SPECTRUM_CPS"]
     cps_err = daxss_data.variables["SPECTRUM_CPS_ACCURACY"]
     cps_precision = daxss_data.variables["SPECTRUM_CPS_PRECISION"]
-    integration_time = daxss_data['INTEGRATION_TIME']
+    integration_time = daxss_data["INTEGRATION_TIME"]
 
     ds = xr.Dataset(
         data_vars={
@@ -328,7 +324,7 @@ def read_daxss_data(file_name):
             "cps_precision": (("time", "energy"), cps_precision),
             "irradiance": (("time", "energy"), irradiance),
             "irradiance_uncert": (("time", "energy"), irradiance_err),
-        "integration_time": (("time"), integration_time),
+            "integration_time": (("time"), integration_time),
         },
         coords={"time": dates, "energy": energy[0]},
     )
@@ -526,6 +522,7 @@ class instrument:
         self.arf = create_arf_dataarray(arf_file_path)
         return self.arf
 
+
 def calc_shot_noise(da):
     """
     Calculates shot noise for resample from input array of individual shot noises.
@@ -536,11 +533,12 @@ def calc_shot_noise(da):
 
     Returns
     -------
-    TODO
+    float, total shot noise for the given array.
 
     """
-    err2 = da**2
+    err2 = da ** 2
     return np.sqrt(err2.sum(dim="time"))
+
 
 class DaXSS_instrument(instrument):
 

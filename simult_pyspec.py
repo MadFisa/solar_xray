@@ -28,10 +28,6 @@ def create_pha_files(flare_num, bin_size=None):
     ----------
     flare_num : int, flare_number(index) in the observation_table.
 
-    Returns
-    -------
-    TODO
-
     """
     flare_dir = f"./data/pha/flare_num_{flare_num}/simult"
     flare = observation_table.loc[flare_num]
@@ -141,6 +137,6 @@ def fit_simult(
         arf_file_list.append(["USE_DEFAULT", xsm_arf_file])
     chiso = chisoth_2T(PHA_file_list, arf_file_list, flare_dir)
     FIP_elements = ["Mg", "Si", "S", "Ar", "Fe"]
-    chiso.init_chisoth(FIP_elements, error_sigma=6.00)
+    chiso.init_chisoth(FIP_elements, error_sigma=12.00)
     df = chiso.fit(min_E, max_E)
     return df

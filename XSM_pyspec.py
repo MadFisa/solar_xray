@@ -76,7 +76,7 @@ def fit_xsm(
     min_E=1.3,
     max_E=10.0,
 ):
-    """TODO: Docstring for fit_xsm.
+    """
 
     Parameters
     ----------
@@ -122,7 +122,7 @@ def fit_xsm(
         orig_i.removesuffix(".pha") + (".arf") for orig_i in orig_PHA_file_list
     ]
     chiso = chisoth_2T(PHA_file_list, arf_file_list, flare_dir)
-    chiso.init_chisoth(FIP_elements, error_sigma=6.00)
+    chiso.init_chisoth(FIP_elements, error_sigma=12.00)
 
     #%%Fit
     df = chiso.fit(min_E, max_E)

@@ -34,7 +34,7 @@ def create_pha_files(flare_num, bin_size=None):
 
     Returns
     -------
-    TODO
+    group object, not particularly importane
 
     """
     observation_table = pd.read_hdf(observation_file, "obs")
@@ -120,7 +120,7 @@ def fit_daxss(
 
     arf_file_list = ["USE_DEFAULT"] * len(PHA_file_list)
     chiso = chisoth_2T(PHA_file_list, arf_file_list, flare_dir)
-    chiso.init_chisoth(FIP_elements, error_sigma=6.00)
+    chiso.init_chisoth(FIP_elements, error_sigma=12.00)
 
     #%%Fit
 

@@ -27,11 +27,6 @@ def do_grppha(
     file_list : list of files
     cutoff_cps : cutoff cps
     out_put_file_list : list of output file names.
-
-    Returns
-    -------
-    TODO
-
     """
     for in_file, out_file in zip(file_list, out_put_file_list):
         command = f"grppha infile='{in_file}' outfile='!{out_file}' comm='GROUP MIN {cutoff_cps}&exit' "
@@ -79,10 +74,6 @@ class chisoth_2T:
         Parameters
         ----------
         FIP_elements : list
-
-        Returns
-        -------
-        TODO
 
         """
         self.FIP_elements = FIP_elements
@@ -134,15 +125,13 @@ class chisoth_2T:
         print(f"error string is {self.err_string}")
 
     def load_spectra(self,file_idx):
-        """TODO: Docstring for load_spectra.
+        """
+        Loads spectra to XSPEC based on whether there is a single file or multiple
+        files.
 
         Parameters
         ----------
-        f : TODO
-
-        Returns
-        -------
-        TODO
+        file_idx : index of the file in self.PHA_file_list to load.
 
         """
         PHA_files = self.PHA_file_list[file_idx]

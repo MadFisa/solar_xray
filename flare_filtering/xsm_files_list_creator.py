@@ -26,7 +26,7 @@ def generate_xsm_filename(interval_start_array, interval_end_array):
 
     Returns
     -------
-    TODO
+    list, with filenames in it
 
     """
     file_list = []

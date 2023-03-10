@@ -108,10 +108,6 @@ def create_tables(
     kargs :dictionary, keyword arguments to be passed to Chianti.mspectrum  as
     key value pairs, for example {procs:8}
 
-    Returns
-    -------
-    TODO
-
     """
     wvl = conversion_factor / energies  # Converts from keV to Armstrongs
     if not os.path.exists(save_dir):

@@ -62,18 +62,18 @@ def plot_individual(instrument, flare_num):
         UB_err = df[par_i_UB] - df[par_i]
         LB_err = df[par_i] - df[par_i_LB]
         plt.errorbar(
-            times, df[par_i], yerr=(LB_err, UB_err), elinewidth=1, linestyle="", label=par_i
+            times, df[par_i], yerr=(LB_err, UB_err), elinewidth=1, capsize=6, linestyle="", label=par_i
         )
         # plt.errorbar(times, df[par_i], elinewidth=1, fmt="o", linestyle="", label=par_i)
         # plt.ylabel(par_i)
     plt.legend()
     plt.xlabel("Time")
-    plt.ylabel("log(T) (MK)")
+    plt.ylabel("log(T) (K)")
     plt.title(f"flare {flare_num} on {peak_time}")
     ax2 = plt.twinx()
     ax2.grid(visible=False)
     net_counts.plot.line("o--", alpha=0.6, color="black", ax=ax2)
-    ax2.set_ylabel("Photon flux (Counts/second)")
+    ax2.set_ylabel(r"Irradinace ($W/m^2$)")
     plt.gca().xaxis.set_major_formatter(date_formatter)
     plt.tight_layout()
     plt.savefig(f"{fig_dir}/Temperature_evolution.png")
@@ -86,7 +86,7 @@ def plot_individual(instrument, flare_num):
         UB_err = df[par_i_UB] - df[par_i]
         LB_err = df[par_i] - df[par_i_LB]
         plt.errorbar(
-            times, df[par_i], yerr=(LB_err, UB_err), elinewidth=1, linestyle="", label=par_i
+            times, df[par_i], yerr=(LB_err, UB_err), elinewidth=1, capsize=6, linestyle="", label=par_i
         )
         # plt.errorbar(times, df[par_i], elinewidth=1, fmt="o", linestyle="", label=par_i)
         # plt.ylabel(par_i)
@@ -97,7 +97,7 @@ def plot_individual(instrument, flare_num):
     ax2 = plt.twinx()
     ax2.grid(visible=False)
     net_counts.plot.line("o--", alpha=0.6, color="black", ax=ax2)
-    ax2.set_ylabel("Photon flux (Counts/second)")
+    ax2.set_ylabel(r"Irradinace ($W/m^2$)")
     plt.gca().xaxis.set_major_formatter(date_formatter)
     plt.tight_layout()
     plt.savefig(f"{fig_dir}/emission_measure_evolution.png")
@@ -111,7 +111,7 @@ def plot_individual(instrument, flare_num):
         UB_err = df[par_i_UB] - df[par_i]
         LB_err = df[par_i] - df[par_i_LB]
         plt.errorbar(
-            times, df[par_i], yerr=(LB_err, UB_err), elinewidth=1, linestyle="", label=par_i
+            times, df[par_i], yerr=(LB_err, UB_err), elinewidth=1, capsize=6, linestyle="", label=par_i
         )
         # plt.errorbar(times, df[par_i], elinewidth=1, fmt="o", linestyle="", label=par_i)
         plt.ylabel(par_i)
@@ -120,7 +120,7 @@ def plot_individual(instrument, flare_num):
         ax2 = plt.twinx()
         ax2.grid(visible=False)
         net_counts.plot.line("o--", alpha=0.3, color="black", ax=ax2)
-        ax2.set_ylabel("Photon flux (Counts/second)")
+        ax2.set_ylabel(r"Irradinace ($W/m^2$)")
         plt.gca().xaxis.set_major_formatter(date_formatter)
         plt.tight_layout()
         plt.savefig(f"{fig_dir}/{par_i}.png")
@@ -132,7 +132,7 @@ def plot_individual(instrument, flare_num):
         UB_err = df[par_i_UB] - df[par_i]
         LB_err = df[par_i] - df[par_i_LB]
         plt.errorbar(
-            times, df[par_i], yerr=(LB_err, UB_err), elinewidth=1, linestyle="", label=par_i
+            times, df[par_i], yerr=(LB_err, UB_err), elinewidth=1, capsize=6, linestyle="", label=par_i
         )
         # plt.errorbar(times, df[par_i], elinewidth=1, fmt="o", linestyle="", label=par_i)
         plt.ylabel(par_i)
@@ -141,7 +141,7 @@ def plot_individual(instrument, flare_num):
         ax2 = plt.twinx()
         ax2.grid(visible=False)
         net_counts.plot.line("o--", alpha=0.6, color="black", ax=ax2)
-        ax2.set_ylabel("Photon flux (Counts/second)")
+        ax2.set_ylabel(r"Irradinace ($W/m^2$)")
         plt.gca().xaxis.set_major_formatter(date_formatter)
         plt.tight_layout()
         plt.savefig(f"{fig_dir}/{par_i}.png")
@@ -163,7 +163,7 @@ def plot_individual(instrument, flare_num):
     ax2 = plt.twinx()
     ax2.grid(visible=False)
     net_counts.plot.line("o--", alpha=0.6, color="black", ax=ax2)
-    ax2.set_ylabel("Photon flux (Counts/second)")
+    ax2.set_ylabel(r"Irradinace ($W/m^2$)")
     plt.gca().xaxis.set_major_formatter(date_formatter)
     plt.tight_layout()
     plt.savefig(f"{fig_dir}/{par_i}.png")
@@ -227,7 +227,7 @@ def plot_simult(flare_num, instruments):
                     times,
                     df[par_i],
                     yerr=(LB_err, UB_err),
-                    elinewidth=3,
+                    elinewidth=3, capsize=6,
                     linestyle="",
                     label=instrument,
                 )
@@ -260,7 +260,7 @@ def plot_simult(flare_num, instruments):
                     times,
                     df[par_i],
                     yerr=(LB_err, UB_err),
-                    elinewidth=3,
+                    elinewidth=3, capsize=6,
                     linestyle="",
                     label=instrument,
                 )

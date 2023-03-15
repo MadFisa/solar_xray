@@ -66,6 +66,7 @@ class chisoth_2T:
         xp.Plot.yLog = True
         xp.Plot.xLog = False
         xp.Xset.parallel.leven = 6
+        xp.Plot.device = "/xw"
 
     def init_chisoth(self, FIP_elements, max_red_chi=100.0, sigma=1.0):
         """
@@ -180,6 +181,62 @@ class chisoth_2T:
                 fit_element_list.append(element_i)
         return fit_element_list
 
+    def plot_fit(self, out_file):
+        """
+        Plots the rusults of current fit to the file
+
+        Parameters
+        ----------
+        out_file : string, path name to save the plot to.
+        Returns
+        -------
+        TODO
+
+        """
+        ##% Plot
+        # Stuff required for plotting
+        # xp.Plot.device = "/xs"
+        # xp.Plot("data", "resid")
+        xp.Plot("data", "delchi")
+        x = xp.Plot.x()
+        x_err = xp.Plot.xErr()
+        y = xp.Plot.y()
+        y_err = xp.Plot.yErr()
+        model = xp.Plot.model()
+        xp.Plot("delchi")
+        chix = xp.Plot.x()
+        chix_err = xp.Plot.xErr()
+        chi = xp.Plot.y()
+        chi_err = xp.Plot.yErr()
+
+        fig, ax = plt.subplots(nrows=2, ncols=1, sharex=True, figsize=(16, 9))
+        ax[0].plot(x, model, drawstyle="steps-mid")
+        ax[0].errorbar(
+            x, y, xerr=x_err, yerr=y_err, linestyle="None", fmt="k", alpha=0.6
+        )
+        ax[0].set_yscale("log")
+        ax[0].set_ylim(bottom=1)
+        ax[0].set_ylabel("counts/s/keV")
+        ax[1].hlines(
+            0,
+            min(chix),
+            max(chix),
+        )
+        ax[1].errorbar(
+            chix,
+            chi,
+            xerr=chix_err,
+            yerr=chi_err,
+            linestyle="None",
+            fmt="k",
+            alpha=0.6,
+        )
+        ax[1].set_ylabel("(data-model)/error")
+        fig.supxlabel("Energy (keV)")
+        plt.savefig(out_file)
+        plt.close()
+
+    def fit(self, min_E, max_E=15.0, cutoff_cps=1.0, do_dynamic_elements=False):
         """
         fits the data iwth models.
 
@@ -270,49 +327,7 @@ class chisoth_2T:
             temp_col.append(xp.Fit.testStatistic)
             temp_col.append(xp.Fit.testStatistic / xp.Fit.dof)
             self.par_vals.append(temp_col)
-            ##% Plot
-            # Stuff required for plotting
-            # xp.Plot.device = "/xs"
-            xp.Plot.device = "/xw"
-            # xp.Plot("data", "resid")
-            xp.Plot("data", "delchi")
-            x = xp.Plot.x()
-            x_err = xp.Plot.xErr()
-            y = xp.Plot.y()
-            y_err = xp.Plot.yErr()
-            model = xp.Plot.model()
-            xp.Plot("delchi")
-            chix = xp.Plot.x()
-            chix_err = xp.Plot.xErr()
-            chi = xp.Plot.y()
-            chi_err = xp.Plot.yErr()
-
-            fig, ax = plt.subplots(nrows=2, ncols=1, sharex=True, figsize=(16, 9))
-            ax[0].plot(x, model, drawstyle="steps-mid")
-            ax[0].errorbar(
-                x, y, xerr=x_err, yerr=y_err, linestyle="None", fmt="k", alpha=0.6
-            )
-            ax[0].set_yscale("log")
-            ax[0].set_ylim(bottom=1)
-            ax[0].set_ylabel("counts/s/keV")
-            ax[1].hlines(
-                0,
-                min(chix),
-                max(chix),
-            )
-            ax[1].errorbar(
-                chix,
-                chi,
-                xerr=chix_err,
-                yerr=chi_err,
-                linestyle="None",
-                fmt="k",
-                alpha=0.6,
-            )
-            ax[1].set_ylabel("(data-model)/error")
-            fig.supxlabel("Energy (keV)")
-            plt.savefig(f"{out_dir}/{f_name}.png")
-            plt.close()
+            self.plot_fit(f"{out_dir}/{f_name}.png")
         #%% Make a data frame
         times = [
             os.path.basename(PHA_file_i).removesuffix(".pha")[-29:]

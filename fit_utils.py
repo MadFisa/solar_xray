@@ -68,7 +68,9 @@ class chisoth_2T:
         xp.Xset.parallel.leven = 6
         xp.Plot.device = "/xw"
 
-    def init_chisoth(self, FIP_elements, max_red_chi=100.0, sigma=1.0):
+    def init_chisoth(
+        self, FIP_elements, max_red_chi=100.0, sigma=1.0, xcm_file="2T.xcm"
+    ):
         """
         Initialises 2T chisothermal model with elements in FIP_elements.
 
@@ -94,8 +96,8 @@ class chisoth_2T:
                 self.colum_names.append(fit_pars_i + suffix_i + "_err_code")
         self.colum_names.append("Chi")
         self.colum_names.append("red_Chi")
-
-        self.m = xp.Model("chisoth + chisoth", "flare")
+        xp.Xset.restore(xcm_file)
+        self.m = xp.AllModels(1, "flare")
         m = self.m
         # Dictionary that will be used to unfreeze parameters
         self.FIP_unfreeze_dict = {}

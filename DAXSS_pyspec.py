@@ -95,10 +95,8 @@ def fit_daxss(
         CREATE = True
     if CREATE:
         shutil.rmtree(f"{flare_dir}/orig_pha/", ignore_errors=True)
-        resamp = create_pha_files(flare_num, bin_size="27S")
-    if CREATE:
-        shutil.rmtree(f"{flare_dir}/orig_pha/", ignore_errors=True)
-        resamp = create_pha_files(flare_num, bin_size="27S")
+        os.makedirs(f"{flare_dir}/orig_pha")
+        resamp = create_pha_files(flare_num, bin_size=bin_size)
 
     # Run grppha on files to group
     orig_PHA_file_list = glob.glob(f"{flare_dir}/orig_pha/*.pha")
@@ -120,7 +118,7 @@ def fit_daxss(
 
     arf_file_list = ["USE_DEFAULT"] * len(PHA_file_list)
     chiso = chisoth_2T(PHA_file_list, arf_file_list, flare_dir)
-    chiso.init_chisoth(FIP_elements, error_sigma=12.00)
+    chiso.init_chisoth(FIP_elements)
 
     #%%Fit
 

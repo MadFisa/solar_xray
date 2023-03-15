@@ -67,7 +67,7 @@ class chisoth_2T:
         xp.Plot.xLog = False
         xp.Xset.parallel.leven = 6
 
-    def init_chisoth(self, FIP_elements,max_red_chi=100.):
+    def init_chisoth(self, FIP_elements,max_red_chi=100.,sigma=1.0):
         """
         Initialises 2T chisothermal model with elements in FIP_elements.
 
@@ -75,6 +75,7 @@ class chisoth_2T:
         ----------
         FIP_elements : list
         max_red_chi : float,  maximum allowed red_chi square value for error calculations.
+        sigma : float, sigma for error calculation
 
         """
         self.FIP_elements = FIP_elements
@@ -120,8 +121,8 @@ class chisoth_2T:
             self.FIP_unfreeze_dict[idx_temp] = ",0.01,,,,,"
 
         self.all_par_index = self.other_par_index + self.FIP_par_index
-        self.err_string = f"maximum {max_red_chi} flare:" + ",".join(
-            [str(i) + "," for i in self.all_par_index]
+        self.err_string = f"maximum {max_red_chi} {sigma} flare:" + "".join(
+            [str(i) + " " for i in self.all_par_index]
         )  # error string to be used later with xspec err command
         print(f"error string is {self.err_string}")
 

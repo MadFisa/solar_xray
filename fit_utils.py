@@ -67,13 +67,13 @@ class chisoth_2T:
         xp.Plot.xLog = False
         xp.Xset.parallel.leven = 6
 
-    def init_chisoth(self, FIP_elements,max_red_chi=100.,sigma=1.0):
+    def init_chisoth(self, FIP_elements, max_red_chi=100.0, sigma=1.0):
         """
         Initialises 2T chisothermal model with elements in FIP_elements.
 
         Parameters
         ----------
-        FIP_elements : list
+        FIP_elements : list of elements, these elements will be alway included in fitting.
         max_red_chi : float,  maximum allowed red_chi square value for error calculations.
         sigma : float, sigma for error calculation
 
@@ -126,7 +126,7 @@ class chisoth_2T:
         )  # error string to be used later with xspec err command
         print(f"error string is {self.err_string}")
 
-    def load_spectra(self,file_idx):
+    def load_spectra(self, file_idx):
         """
         Loads spectra to XSPEC based on whether there is a single file or multiple
         files.
@@ -142,13 +142,44 @@ class chisoth_2T:
             PHA_files = [PHA_files]
             arf_files = [arf_files]
 
-        for i,spectra_i in enumerate(PHA_files):
+        for i, spectra_i in enumerate(PHA_files):
             xp.AllData += spectra_i
-            if arf_files[i] != 'USE_DEFAULT':
-               xp.AllData(i+1).response.arf = arf_files[i]
+            if arf_files[i] != "USE_DEFAULT":
+                xp.AllData(i + 1).response.arf = arf_files[i]
 
+    def find_fit_elements(
+        self,
+        cps,
+        energies,
+        threshold=10,
+        element_line_dict={"S": 2.45, "Ar": 3.2, "Ca": 3.9, "Fe": 6.5},
+    ):
+        """
+        Function to generate a list of elements to consider based on cps in spectra.
+        Function takes dictionary of elemental lies, add the element to the list
+        of elements to consider if the number of counts after the line energy
+        is more than the threshold.
 
-    def fit(self, min_E,max_E=15.0,cutoff_cps=1.0):
+        Parameters
+        ----------
+        cps : array, count per second of spectra.
+        energy_bins: array, of energy bins
+        threshold : minimum counts per second for which elements to considered.
+        element_line_dict : a dictionary with keys as elements and values line energies in keV.
+
+        Returns
+        -------
+        list of elements for fitting.
+
+        """
+        fit_element_list = []
+        # Dictionary with keys as elements and values as line energys
+        for element_i in element_line_dict:
+            mask = energies > element_line_dict[element_i]
+            if np.sum(cps[mask]) > threshold:
+                fit_element_list.append(element_i)
+        return fit_element_list
+
         """
         fits the data iwth models.
 
@@ -156,6 +187,8 @@ class chisoth_2T:
         ----------
         min_E : minimum energy cut off for fitting
         max_E : maxmimum energy cut off for fitting
+        cutoff_cps : minimum number of counts to be considered to be inclued in fit.
+        dynamic_elements : bool, will dynamically add more elements to fit depending on counts.
 
         Returns
         -------
@@ -163,63 +196,53 @@ class chisoth_2T:
         """
 
         xp.AllData.clear()
-        self.min_E = min_E
-        self.max_E = min_E
-        self.load_spectra(0)
-        xp.AllData.ignore(f"**-{min_E} 15.0-**")
-
         m = self.m
-        m.setPars(self.temperature_unfreeze_dict)
-        xp.Fit.renorm()
-        xp.Fit.perform()
-        xp.Fit.renorm()
-        xp.Fit.perform()
-        n = 0
-        while xp.Fit.testStatistic > 2000 and n < 5:
-            n += 1
-            xp.Fit.renorm()
-            xp.Fit.perform()
-        m.setPars(self.FIP_unfreeze_dict)
-        n = 0
-        while xp.Fit.testStatistic > 1000 and n < 5:
-            n += 1
-            xp.Fit.renorm()
-            xp.Fit.perform()
-        xp.Fit.renorm()
-        xp.Fit.perform()
         out_dir = f"{self.flare_dir}/fit"
         if not os.path.isdir(out_dir):
             os.makedirs(out_dir)
         xp.AllData.clear()
         self.par_vals = []
         PHA_file_array = np.array(self.PHA_file_list)
-        if PHA_file_array.ndim == 1:
-            file_names = [os.path.basename(PHA_file).removesuffix(".pha") for PHA_file in PHA_file_array]
-        else :
-            file_names = ["simult" + os.path.basename(PHA_file).removesuffix(".pha")[-30:] for PHA_file in PHA_file_array[:,0]]
 
+        # Check if the there is multiple instruments
+        if PHA_file_array.ndim == 1:
+            file_names = [
+                os.path.basename(PHA_file).removesuffix(".pha")
+                for PHA_file in PHA_file_array
+            ]
+        else:
+            file_names = [
+                "simult" + os.path.basename(PHA_file).removesuffix(".pha")[-30:]
+                for PHA_file in PHA_file_array[:, 0]
+            ]
         #%% Fit
         for i, f_name in enumerate(file_names):
+            m.setPars(self.temperature_unfreeze_dict)
+            m.setPars(self.FIP_unfreeze_dict)
             xp.AllData.clear()
             logFile = xp.Xset.openLog(f"{out_dir}/{f_name}.log")
             self.load_spectra(i)
             xp.Fit.statMethod = "chi"
-            xp.AllData.ignore(f"**-{min_E}")
-            xp.AllData.ignore(f"{max_E}-**")
 
-            # Implementing dynamic maximum cut off
+            # Some dynamic adjustments for fitting
             for i in range(xp.AllData.nSpectra):
                 # temp_max_E = max_E
-                s = xp.AllData(i+1)
+                s = xp.AllData(i + 1)
+                s.ignore(f"**-{min_E}")
+                s.ignore(f"{max_E}-**")
                 counts = np.array(s.values)
-                idxs = np.where(counts<cutoff_cps)[0][0]
+                energies = np.array(s.energies)
+                # Implementing dynamic maximum cut off
+                idxs = np.where(counts < cutoff_cps)[0][0]
                 if idxs.size > 0:
-                    cutoff_idx = np.where(counts<cutoff_cps)[0][0]
-                    cutoff_energy = s.energies[cutoff_idx][1]
+                    cutoff_idx = np.where(counts < cutoff_cps)[0][0]
+                    cutoff_energy = energies[cutoff_idx][1]
                     if cutoff_energy < max_E:
                         s.ignore(f"{cutoff_energy}-**")
+            # Implementing dynamic addition of elements
+            # if do_dynamic_elements:
 
-            # Satrt fitting 
+            # Satrt fitting
             m.setPars(self.temperature_unfreeze_dict)
             xp.Fit.renorm()
             xp.Fit.perform()

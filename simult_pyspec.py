@@ -137,6 +137,6 @@ def fit_simult(
         arf_file_list.append(["USE_DEFAULT", xsm_arf_file])
     chiso = chisoth_2T(PHA_file_list, arf_file_list, flare_dir)
     FIP_elements = ["Mg", "Si", "S", "Ar", "Fe"]
-    chiso.init_chisoth(FIP_elements, error_sigma=12.00)
+    chiso.init_chisoth(FIP_elements)
     df = chiso.fit(min_E, max_E)
     return df

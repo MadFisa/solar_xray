@@ -17,7 +17,7 @@ import xspec as xp
 def do_grppha(
     file_list,
     out_put_file_list,
-    cutoff_cps,
+    threshold_counts,
 ):
     """
     The function will do gpb pha on files based on cutoff cps.
@@ -29,7 +29,7 @@ def do_grppha(
     out_put_file_list : list of output file names.
     """
     for in_file, out_file in zip(file_list, out_put_file_list):
-        command = f"grppha infile='{in_file}' outfile='!{out_file}' comm='GROUP MIN {cutoff_cps}&exit' "
+        command = f"grppha infile='{in_file}' outfile='!{out_file}' comm='GROUP MIN {threshold_counts}&exit' "
         os.system(command)
 
 
@@ -67,13 +67,14 @@ class chisoth_2T:
         xp.Plot.xLog = False
         xp.Xset.parallel.leven = 6
 
-    def init_chisoth(self, FIP_elements,error_sigma=2.706):
+    def init_chisoth(self, FIP_elements,max_red_chi=100.):
         """
         Initialises 2T chisothermal model with elements in FIP_elements.
 
         Parameters
         ----------
         FIP_elements : list
+        max_red_chi : float,  maximum allowed red_chi square value for error calculations.
 
         """
         self.FIP_elements = FIP_elements
@@ -119,7 +120,7 @@ class chisoth_2T:
             self.FIP_unfreeze_dict[idx_temp] = ",0.01,,,,,"
 
         self.all_par_index = self.other_par_index + self.FIP_par_index
-        self.err_string = f"maxmimum {error_sigma} flare:" + ",".join(
+        self.err_string = f"maximum {max_red_chi} flare:" + ",".join(
             [str(i) + "," for i in self.all_par_index]
         )  # error string to be used later with xspec err command
         print(f"error string is {self.err_string}")

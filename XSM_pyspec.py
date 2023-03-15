@@ -72,7 +72,7 @@ def fit_xsm(
     FIP_elements=["Mg", "Si", "S", "Ar", "Ca", "Fe"],
     CREATE=False,
     BIN=False,
-    cutoff_cps=1,
+    threshold_counts=1,
     min_E=1.3,
     max_E=10.0,
 ):
@@ -84,7 +84,7 @@ def fit_xsm(
     FIP_elements : list of elements to be considered as FIP.
     CREATE : bool, Whether to create_pha_files.
     BIN : bool, Whetther to bin the pha files using grbpha
-    cutoff_cps: float, threshold cps to bin i.e the grppha
+    threshold_counts: float, threshold cps to bin i.e the grppha
     min_E : float, minimum energy of spectra to start fit from
     max_E : float, optional, maximum energy to fit from
 
@@ -113,7 +113,7 @@ def fit_xsm(
     if BIN:
         shutil.rmtree(f"{flare_dir}/grpd_pha/", ignore_errors=True)
         os.makedirs(f"{flare_dir}/grpd_pha")
-        do_grppha(orig_PHA_file_list, PHA_file_list, cutoff_cps)
+        do_grppha(orig_PHA_file_list, PHA_file_list, threshold_counts)
         os.system(f"cp {flare_dir}/orig_pha/*.arf {flare_dir}/grpd_pha/")
 
     # #%% Initialise
@@ -122,7 +122,7 @@ def fit_xsm(
         orig_i.removesuffix(".pha") + (".arf") for orig_i in orig_PHA_file_list
     ]
     chiso = chisoth_2T(PHA_file_list, arf_file_list, flare_dir)
-    chiso.init_chisoth(FIP_elements, error_sigma=12.00)
+    chiso.init_chisoth(FIP_elements)
 
     #%%Fit
     df = chiso.fit(min_E, max_E)

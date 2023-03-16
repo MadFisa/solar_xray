@@ -96,55 +96,11 @@ class chisoth_2T:
                 idx_temp = eval(f"self.m.{component_i}.{other_par_i}.index")
                 self.other_par_idx.append(idx_temp)
 
-    # def init_chisoth(self, FIP_elements, xcm_file="2T.xcm"):
-    # """
-    # Initialises 2T chisothermal model with elements in FIP_elements.
-
-    # Parameters
-    # ----------
-    # FIP_elements : list of elements, these elements will be alway included in fitting.
-
-    # """
-
-    # # Creating column names for pandas later
-    # self.colum_names = []
-    # for fit_pars_i in self.fit_pars:
-    # for suffix_i in self.suffix:
-    # self.colum_names.append(fit_pars_i + suffix_i + "_values")
-    # self.colum_names.append(fit_pars_i + suffix_i + "_UB")
-    # self.colum_names.append(fit_pars_i + suffix_i + "_LB")
-    # self.colum_names.append(fit_pars_i + suffix_i + "_err_code")
-    # self.colum_names.append("Chi")
-    # self.colum_names.append("red_Chi")
-    # Dictionary that will be used to unfreeze parameters
-    # self.FIP_unfreeze_dict = {}
-    # self.temperature_unfreeze_dict = {
-    # eval("m.chisoth.logT.index"): "6.8,0.01,,,,,",
-    # eval("m.chisoth_2.logT.index"): "7.2,0.01,,,,,",
-    # }
-
-    # self.other_par_index = []
-    # model_components_list = m.componentNames
-    # for component_i in model_components_list:
-    # for other_pars_i in self.other_pars:
-    # idx_temp = eval(f"m.{component_i}.{other_pars_i}.index")
-    # self.other_par_index.append(idx_temp)
-
-    # self.FIP_par_index = []
-    # for FIP_el in FIP_elements:
-    # idx_temp = eval(f"m.chisoth.{FIP_el}.index")
-    # par_1 = eval(f"m.chisoth.{FIP_el}")
-    # par_2 = eval(f"m.chisoth_2.{FIP_el}")
-    # par_2.link = par_1
-    # idx_temp = eval(f"m.chisoth.{FIP_el}.index")
-    # self.FIP_par_index.append(idx_temp)
-    # self.FIP_unfreeze_dict[idx_temp] = ",0.01,,,,,"
-
-    # self.all_par_index = self.other_par_index + self.FIP_par_index
-    # self.err_string = f"maximum {max_red_chi} {sigma} flare:" + "".join(
-    # [str(i) + " " for i in self.all_par_index]
-    # )  # error string to be used later with xspec err command
-    # print(f"error string is {self.err_string}")
+        times = [
+            os.path.basename(PHA_file_i).removesuffix(".pha")[-29:]
+            for PHA_file_i in self.PHA_file_list
+        ]
+        self.times = pd.to_datetime(times)
 
     def load_spectra(self, file_idx):
         """
@@ -399,30 +355,29 @@ class chisoth_2T:
             # Finding errors
             self.create_err_string(fit_elements, max_red_chi, sigma)
             xp.Fit.error(self.err_string)
-            xp.Xset.save(f"{out_dir}/{f_name}.xcm")
-            xp.Xset.closeLog()
-            # temp_col = []
-            # for fit_pars_i in self.fit_pars:
-            # for suffix_i in self.suffix:
-            # m_par_i = eval(f"m.chisoth{suffix_i}.{fit_pars_i}")
-            # temp_col.append(m_par_i.values[0])
-            # temp_col.append(m_par_i.error[0])
-            # temp_col.append(m_par_i.error[1])
-            # temp_col.append(m_par_i.error[2])
-            # temp_col.append(xp.Fit.testStatistic)
-            # temp_col.append(xp.Fit.testStatistic / xp.Fit.dof)
-            # self.par_vals.append(temp_col)
+            fit_pars = self.other_pars + fit_elements
+
+            # Store the parameter values for later to turn into dataframe
+            temp_col = {}
+            suffix = ["", "_2"]  # TODO: Make this more general
+            for fit_pars_i in fit_pars:
+                for suffix_i in suffix:
+                    m_par_i = eval(f"m.chisoth{suffix_i}.{fit_pars_i}")
+                    par_col_prefix = fit_pars_i + suffix_i
+                    temp_col[f"{par_col_prefix}_values"] = m_par_i.values[0]
+                    temp_col[f"{par_col_prefix}_UB"] = m_par_i.error[0]
+                    temp_col[f"{par_col_prefix}_LB"] = m_par_i.error[1]
+                    temp_col[f"{par_col_prefix}_err_code"] = m_par_i.error[2]
+            temp_col["Chi"] = xp.Fit.testStatistic
+            temp_col["red_Chi"] = xp.Fit.testStatistic / xp.Fit.dof
+            print(f"Fit results are: {temp_col}")
+            self.par_vals.append(temp_col)
             xp.Xset.save(f"{out_dir}/{f_name}.xcm")  # Save model to xcm file
             xp.Xset.closeLog()
             self.plot_fit(f"{out_dir}/{f_name}.png")
-        # #%% Make a data frame
-        # times = [
-        # os.path.basename(PHA_file_i).removesuffix(".pha")[-29:]
-        # for PHA_file_i in self.PHA_file_list
-        # ]
-        # times = pd.to_datetime(times)
+        #%% Make a data frame
 
-        # df = pd.DataFrame(self.par_vals, columns=self.colum_names, index=times)
-        # df.to_csv(f"{out_dir}/results.csv")
-        # df.to_hdf(f"{out_dir}/results.h5", "results")
-        # return df
+        df = pd.DataFrame(self.par_vals, index=self.times)
+        df.to_csv(f"{out_dir}/results.csv")
+        df.to_hdf(f"{out_dir}/results.h5", "results")
+        return df

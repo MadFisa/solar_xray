@@ -43,6 +43,7 @@ class chisoth_2T:
     colum_names = None
     arf_files_list = None
     m = None
+    fit_elements_list = []
 
     def __init__(
         self,
@@ -85,6 +86,15 @@ class chisoth_2T:
         xp.Plot.xLog = False
         xp.Xset.parallel.leven = 6
         xp.Plot.device = "/xw"
+
+        # Figure out parameter index for other_pars which doesnot change during fitting
+        self.other_par_idx = []
+        xp.Xset.restore(self.xcm_file)
+        self.m = xp.AllModels(1, "flare")
+        for component_i in self.m.componentNames:
+            for other_par_i in self.other_pars:
+                idx_temp = eval(f"self.m.{component_i}.{other_par_i}.index")
+                self.other_par_idx.append(idx_temp)
 
     # def init_chisoth(self, FIP_elements, xcm_file="2T.xcm"):
     # """
@@ -211,6 +221,26 @@ class chisoth_2T:
             elem_par.frozen = False
         return elem_index_dict
 
+    def create_err_string(self, elements_list, max_red_chi, sigma):
+        """
+
+        Parameters
+        ----------
+        elements_list : list, list of elements.
+        max_red_chi : float, maximum reduced chi for which the error to be calculated
+        sigma : sigma for which error is calculated
+
+        """
+        self.elem_par_idx = []
+        for element_i in elements_list:
+            idx_elem = eval(f"self.m.chisoth.{element_i}.index")
+            self.elem_par_idx.append(idx_elem)
+        self.all_par_idx = self.other_par_idx + self.elem_par_idx
+        self.err_string = f"maximum {max_red_chi} {sigma} flare:" + "".join(
+            [str(i) + " " for i in self.all_par_idx]
+        )  # error string to be used later with xspec err command
+        print(f"error string is {self.err_string}")
+
     def plot_fit(self, out_file):
         """
         Plots the rusults of current fit to the file
@@ -270,7 +300,7 @@ class chisoth_2T:
         sigma=1.0,
     ):
         """
-        fits the data iwth models.
+        fits the data with models.
 
         Parameters
         ----------
@@ -343,9 +373,9 @@ class chisoth_2T:
                     )  # TODO: Make this work for simultaneous fit by putting inside loop
                 else:
                     fit_elements = self.FIP_elements
-
+            self.fit_elements_list.append(fit_elements)
             print(f"Elements for fitting are {fit_elements}")
-            # Satrt fitting with just temperatures left free
+            # Start fitting with just temperatures left free
             xp.Fit.renorm()
             xp.Fit.perform()
             xp.Fit.renorm()
@@ -367,9 +397,10 @@ class chisoth_2T:
                 xp.Fit.perform()
                 red_chi = xp.Fit.testStatistic / xp.Fit.dof
             # Finding errors
-            # xp.Fit.error(self.err_string)
-            # xp.Xset.save(f"{out_dir}/{f_name}.xcm")
-            # xp.Xset.closeLog()
+            self.create_err_string(fit_elements, max_red_chi, sigma)
+            xp.Fit.error(self.err_string)
+            xp.Xset.save(f"{out_dir}/{f_name}.xcm")
+            xp.Xset.closeLog()
             # temp_col = []
             # for fit_pars_i in self.fit_pars:
             # for suffix_i in self.suffix:

@@ -44,7 +44,16 @@ class chisoth_2T:
     arf_files_list = None
     m = None
 
-    def __init__(self, PHA_files, arf_file_list, flare_dir):
+    def __init__(
+        self,
+        PHA_files,
+        arf_file_list,
+        flare_dir,
+        FIP_elements,
+        other_pars=["logT", "norm"],
+        xcm_file="2T.xcm",
+        element_line_dict={"S": 2.45, "Ar": 3.2, "Ca": 3.9, "Fe": 6.5},
+    ):
         """
         Initialises few things for xspec
 
@@ -53,11 +62,20 @@ class chisoth_2T:
         PHA_files : list of PHA files to perform fit on
         arf_files : arf files corresponding to the PHA_files
         flare_dir : directory to save results to
-
+        FIP_elements : list of elements, these elements will be alway included in fitting.
+        other_pars : non-element fit pars.
+        xcm_file : str, path to xcm file defing the model.
+        element_line_dict : a dictionary with keys as elements and values line energies in keV. Used to dynamically add elements to fit. Refer documentation of class function find_fit_elements.
         """
         self.PHA_file_list = PHA_files
         self.arf_file_list = arf_file_list
         self.flare_dir = flare_dir
+        self.xcm_file = xcm_file
+        self.FIP_elements = FIP_elements
+        self.other_pars = other_pars
+        self.element_line_dict = element_line_dict
+
+        # Xspec stuff
         xp.AllModels.lmod("chspec", dirPath=f"{os.path.expanduser('~')}/chspec/")
         xp.AllData.clear()
         xp.AllModels.clear()
@@ -68,66 +86,55 @@ class chisoth_2T:
         xp.Xset.parallel.leven = 6
         xp.Plot.device = "/xw"
 
-    def init_chisoth(
-        self, FIP_elements, max_red_chi=100.0, sigma=1.0, xcm_file="2T.xcm"
-    ):
-        """
-        Initialises 2T chisothermal model with elements in FIP_elements.
+    # def init_chisoth(self, FIP_elements, xcm_file="2T.xcm"):
+    # """
+    # Initialises 2T chisothermal model with elements in FIP_elements.
 
-        Parameters
-        ----------
-        FIP_elements : list of elements, these elements will be alway included in fitting.
-        max_red_chi : float,  maximum allowed red_chi square value for error calculations.
-        sigma : float, sigma for error calculation
+    # Parameters
+    # ----------
+    # FIP_elements : list of elements, these elements will be alway included in fitting.
 
-        """
-        self.FIP_elements = FIP_elements
-        self.other_pars = ["logT", "norm"]
-        self.fit_pars = self.other_pars + self.FIP_elements
-        self.suffix = ["", "_2"]
+    # """
 
-        # Creating column names for pandas later
-        self.colum_names = []
-        for fit_pars_i in self.fit_pars:
-            for suffix_i in self.suffix:
-                self.colum_names.append(fit_pars_i + suffix_i + "_values")
-                self.colum_names.append(fit_pars_i + suffix_i + "_UB")
-                self.colum_names.append(fit_pars_i + suffix_i + "_LB")
-                self.colum_names.append(fit_pars_i + suffix_i + "_err_code")
-        self.colum_names.append("Chi")
-        self.colum_names.append("red_Chi")
-        xp.Xset.restore(xcm_file)
-        self.m = xp.AllModels(1, "flare")
-        m = self.m
-        # Dictionary that will be used to unfreeze parameters
-        self.FIP_unfreeze_dict = {}
-        self.temperature_unfreeze_dict = {
-            eval("m.chisoth.logT.index"): "6.8,0.01,,,,,",
-            eval("m.chisoth_2.logT.index"): "7.2,0.01,,,,,",
-        }
+    # # Creating column names for pandas later
+    # self.colum_names = []
+    # for fit_pars_i in self.fit_pars:
+    # for suffix_i in self.suffix:
+    # self.colum_names.append(fit_pars_i + suffix_i + "_values")
+    # self.colum_names.append(fit_pars_i + suffix_i + "_UB")
+    # self.colum_names.append(fit_pars_i + suffix_i + "_LB")
+    # self.colum_names.append(fit_pars_i + suffix_i + "_err_code")
+    # self.colum_names.append("Chi")
+    # self.colum_names.append("red_Chi")
+    # Dictionary that will be used to unfreeze parameters
+    # self.FIP_unfreeze_dict = {}
+    # self.temperature_unfreeze_dict = {
+    # eval("m.chisoth.logT.index"): "6.8,0.01,,,,,",
+    # eval("m.chisoth_2.logT.index"): "7.2,0.01,,,,,",
+    # }
 
-        self.other_par_index = []
-        model_components_list = m.componentNames
-        for component_i in model_components_list:
-            for other_pars_i in self.other_pars:
-                idx_temp = eval(f"m.{component_i}.{other_pars_i}.index")
-                self.other_par_index.append(idx_temp)
+    # self.other_par_index = []
+    # model_components_list = m.componentNames
+    # for component_i in model_components_list:
+    # for other_pars_i in self.other_pars:
+    # idx_temp = eval(f"m.{component_i}.{other_pars_i}.index")
+    # self.other_par_index.append(idx_temp)
 
-        self.FIP_par_index = []
-        for FIP_el in FIP_elements:
-            idx_temp = eval(f"m.chisoth.{FIP_el}.index")
-            par_1 = eval(f"m.chisoth.{FIP_el}")
-            par_2 = eval(f"m.chisoth_2.{FIP_el}")
-            par_2.link = par_1
-            idx_temp = eval(f"m.chisoth.{FIP_el}.index")
-            self.FIP_par_index.append(idx_temp)
-            self.FIP_unfreeze_dict[idx_temp] = ",0.01,,,,,"
+    # self.FIP_par_index = []
+    # for FIP_el in FIP_elements:
+    # idx_temp = eval(f"m.chisoth.{FIP_el}.index")
+    # par_1 = eval(f"m.chisoth.{FIP_el}")
+    # par_2 = eval(f"m.chisoth_2.{FIP_el}")
+    # par_2.link = par_1
+    # idx_temp = eval(f"m.chisoth.{FIP_el}.index")
+    # self.FIP_par_index.append(idx_temp)
+    # self.FIP_unfreeze_dict[idx_temp] = ",0.01,,,,,"
 
-        self.all_par_index = self.other_par_index + self.FIP_par_index
-        self.err_string = f"maximum {max_red_chi} {sigma} flare:" + "".join(
-            [str(i) + " " for i in self.all_par_index]
-        )  # error string to be used later with xspec err command
-        print(f"error string is {self.err_string}")
+    # self.all_par_index = self.other_par_index + self.FIP_par_index
+    # self.err_string = f"maximum {max_red_chi} {sigma} flare:" + "".join(
+    # [str(i) + " " for i in self.all_par_index]
+    # )  # error string to be used later with xspec err command
+    # print(f"error string is {self.err_string}")
 
     def load_spectra(self, file_idx):
         """
@@ -155,7 +162,6 @@ class chisoth_2T:
         cps,
         energies,
         threshold=10,
-        element_line_dict={"S": 2.45, "Ar": 3.2, "Ca": 3.9, "Fe": 6.5},
     ):
         """
         Function to generate a list of elements to consider based on cps in spectra.
@@ -168,7 +174,6 @@ class chisoth_2T:
         cps : array, count per second of spectra.
         energy_bins: array, of energy bins
         threshold : minimum counts per second for which elements to considered.
-        element_line_dict : a dictionary with keys as elements and values line energies in keV.
 
         Returns
         -------
@@ -177,11 +182,34 @@ class chisoth_2T:
         """
         fit_element_list = []
         # Dictionary with keys as elements and values as line energys
-        for element_i in element_line_dict:
-            mask = energies > element_line_dict[element_i]
+        for element_i in self.element_line_dict:
+            mask = energies > self.element_line_dict[element_i]
             if np.sum(cps[mask]) > threshold:
                 fit_element_list.append(element_i)
         return fit_element_list
+
+    def setup_pars(self, elements_list):
+        """
+        Function that will take a list of element and unfreezes them for fitting.
+
+        Parameters
+        ----------
+        elements_list : list, of elements to unfreeze
+
+        Returns
+        -------
+
+        elem_index_dict : dictionary that gives parameter indexes corresponding to elements.
+
+        """
+
+        elem_index_dict = {}
+        for elem in elements_list:
+            elem_par = eval(f"self.m.chisoth.{elem}")
+            elem_idx = elem_par.index
+            elem_index_dict[elem] = elem_idx
+            elem_par.frozen = False
+        return elem_index_dict
 
     def plot_fit(self, out_file):
         """
@@ -190,15 +218,8 @@ class chisoth_2T:
         Parameters
         ----------
         out_file : string, path name to save the plot to.
-        Returns
-        -------
-        TODO
 
         """
-        ##% Plot
-        # Stuff required for plotting
-        # xp.Plot.device = "/xs"
-        # xp.Plot("data", "resid")
         xp.Plot("data", "delchi")
         x = xp.Plot.x()
         x_err = xp.Plot.xErr()
@@ -238,7 +259,16 @@ class chisoth_2T:
         plt.savefig(out_file)
         plt.close()
 
-    def fit(self, min_E, max_E=15.0, cutoff_cps=1.0, do_dynamic_elements=False):
+    def fit(
+        self,
+        min_E,
+        max_E=15.0,
+        cutoff_cps=1.0,
+        do_dynamic_elements=False,
+        do_error_calculation=True,
+        max_red_chi=100.0,
+        sigma=1.0,
+    ):
         """
         fits the data iwth models.
 
@@ -247,15 +277,19 @@ class chisoth_2T:
         min_E : minimum energy cut off for fitting
         max_E : maxmimum energy cut off for fitting
         cutoff_cps : minimum number of counts to be considered to be inclued in fit.
-        dynamic_elements : bool, will dynamically add more elements to fit depending on counts.
+        do_dynamic_elements : bool, will dynamically add more elements to fit depending on counts.
 
+        do_error_calculation: bool, whether to do errorr calculation or not.
+        max_red_chi : float,  maximum allowed red_chi square value for error calculations.
+        sigma : float, sigma for error calculation
         Returns
         -------
         df, pandas dataframe with results
         """
+        self.max_red_chi = max_red_chi
+        self.sigma = sigma
 
         xp.AllData.clear()
-        m = self.m
         out_dir = f"{self.flare_dir}/fit"
         if not os.path.isdir(out_dir):
             os.makedirs(out_dir)
@@ -275,11 +309,14 @@ class chisoth_2T:
                 for PHA_file in PHA_file_array[:, 0]
             ]
         #%% Fit
+        # Iterate through th files
         for i, f_name in enumerate(file_names):
-            m.setPars(self.temperature_unfreeze_dict)
-            m.setPars(self.FIP_unfreeze_dict)
             xp.AllData.clear()
+            xp.AllModels.clear()
             logFile = xp.Xset.openLog(f"{out_dir}/{f_name}.log")
+            xp.Xset.restore(self.xcm_file)
+            self.m = xp.AllModels(1, "flare")
+            m = self.m
             self.load_spectra(i)
             xp.Fit.statMethod = "chi"
 
@@ -298,46 +335,63 @@ class chisoth_2T:
                     cutoff_energy = energies[cutoff_idx][1]
                     if cutoff_energy < max_E:
                         s.ignore(f"{cutoff_energy}-**")
-            # Implementing dynamic addition of elements
-            # if do_dynamic_elements:
+                # Implementing dynamic addition of elements
+                if do_dynamic_elements:
+                    dyn_elements = self.find_fit_elements(counts, energies[:, 0])
+                    fit_elements = (
+                        self.FIP_elements + dyn_elements
+                    )  # TODO: Make this work for simultaneous fit by putting inside loop
+                else:
+                    fit_elements = self.FIP_elements
 
-            # Satrt fitting
-            m.setPars(self.temperature_unfreeze_dict)
+            print(f"Elements for fitting are {fit_elements}")
+            # Satrt fitting with just temperatures left free
             xp.Fit.renorm()
             xp.Fit.perform()
+            xp.Fit.renorm()
+            xp.Fit.perform()
+            xp.Fit.renorm()
+            xp.Fit.perform()
+
+            # Unfreeze elemets
+            elments_par_dict = self.setup_pars(fit_elements)
             xp.Fit.renorm()
             xp.Fit.perform()
             xp.Fit.renorm()
             xp.Fit.perform()
             n = 0
-            while xp.Fit.testStatistic > 150 and n < 5:
+            red_chi = xp.Fit.testStatistic / xp.Fit.dof
+            while red_chi > 2 and n < 5:
                 n += 1
                 xp.Fit.renorm()
                 xp.Fit.perform()
+                red_chi = xp.Fit.testStatistic / xp.Fit.dof
             # Finding errors
-            xp.Fit.error(self.err_string)
-            xp.Xset.save(f"{out_dir}/{f_name}.xcm")
+            # xp.Fit.error(self.err_string)
+            # xp.Xset.save(f"{out_dir}/{f_name}.xcm")
+            # xp.Xset.closeLog()
+            # temp_col = []
+            # for fit_pars_i in self.fit_pars:
+            # for suffix_i in self.suffix:
+            # m_par_i = eval(f"m.chisoth{suffix_i}.{fit_pars_i}")
+            # temp_col.append(m_par_i.values[0])
+            # temp_col.append(m_par_i.error[0])
+            # temp_col.append(m_par_i.error[1])
+            # temp_col.append(m_par_i.error[2])
+            # temp_col.append(xp.Fit.testStatistic)
+            # temp_col.append(xp.Fit.testStatistic / xp.Fit.dof)
+            # self.par_vals.append(temp_col)
+            xp.Xset.save(f"{out_dir}/{f_name}.xcm")  # Save model to xcm file
             xp.Xset.closeLog()
-            temp_col = []
-            for fit_pars_i in self.fit_pars:
-                for suffix_i in self.suffix:
-                    m_par_i = eval(f"m.chisoth{suffix_i}.{fit_pars_i}")
-                    temp_col.append(m_par_i.values[0])
-                    temp_col.append(m_par_i.error[0])
-                    temp_col.append(m_par_i.error[1])
-                    temp_col.append(m_par_i.error[2])
-            temp_col.append(xp.Fit.testStatistic)
-            temp_col.append(xp.Fit.testStatistic / xp.Fit.dof)
-            self.par_vals.append(temp_col)
             self.plot_fit(f"{out_dir}/{f_name}.png")
-        #%% Make a data frame
-        times = [
-            os.path.basename(PHA_file_i).removesuffix(".pha")[-29:]
-            for PHA_file_i in self.PHA_file_list
-        ]
-        times = pd.to_datetime(times)
+        # #%% Make a data frame
+        # times = [
+        # os.path.basename(PHA_file_i).removesuffix(".pha")[-29:]
+        # for PHA_file_i in self.PHA_file_list
+        # ]
+        # times = pd.to_datetime(times)
 
-        df = pd.DataFrame(self.par_vals, columns=self.colum_names, index=times)
-        df.to_csv(f"{out_dir}/results.csv")
-        df.to_hdf(f"{out_dir}/results.h5", "results")
-        return df
+        # df = pd.DataFrame(self.par_vals, columns=self.colum_names, index=times)
+        # df.to_csv(f"{out_dir}/results.csv")
+        # df.to_hdf(f"{out_dir}/results.h5", "results")
+        # return df

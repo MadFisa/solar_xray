@@ -156,7 +156,7 @@ def create_daxss_pha(
 
     Returns
     -------
-    a resample object if bin size was specified.
+    file_names_list : a list of all the files that was created
 
 
     """
@@ -226,6 +226,7 @@ def create_daxss_pha(
     # Creating and Storing the FITS File
     cps = cps.dropna(dim="time", how="all")
     time_ISO_array = cps.time
+    file_names_list = []
     #%% Create the array
     c1 = channel_number_array
     for time in time_ISO_array:
@@ -254,11 +255,9 @@ def create_daxss_pha(
         hdul = fits.HDUList([dummy_primary, hdu_data])
         filename_fits = f"{out_dir}/{file_name}"
         hdul.writeto(filename_fits, overwrite=True)
+        file_names_list.append(filename_fits)
 
-    if bin_size is not None:
-        return resampled
-    else:
-        return
+        return file_names_list
 
 
 def read_tables(table_dir, tables_list=None):

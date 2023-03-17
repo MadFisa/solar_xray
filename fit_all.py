@@ -29,7 +29,7 @@ flares = best_flares + good_flares + meh_flares
 
 # instruments = ['xsm', 'daxss', 'simult']
 instruments = ["xsm", "daxss"]
-FIP_elements = ["Mg", "Si", "S", "Ar", "Ca", "Fe"]
+FIP_elements = ["Mg", "Si"]
 for flare_num in flares:
     flare_dir = f"./data/pha/flare_num_{flare_num}"
     daxss_out_dir = f"{flare_dir}/daxss"

@@ -279,7 +279,6 @@ class chisoth_2T:
         out_dir = f"{self.flare_dir}/fit"
         if not os.path.isdir(out_dir):
             os.makedirs(out_dir)
-        xp.AllData.clear()
         self.par_vals = []
         PHA_file_array = np.array(self.PHA_file_list)
 
@@ -378,6 +377,13 @@ class chisoth_2T:
         #%% Make a data frame
 
         df = pd.DataFrame(self.par_vals, index=self.times)
+        # Lets rearrange the columns for to keep Chi and reduced Chi at last
+        old_cols = list(df.columns)
+        old_cols.remove("Chi")
+        old_cols.remove("red_Chi")
+        new_cols = old_cols + ["Chi", "red_Chi"]
+        self.df = df[new_cols]
+        df = self.df
         df.to_csv(f"{out_dir}/results.csv")
         df.to_hdf(f"{out_dir}/results.h5", "results")
         return df

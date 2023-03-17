@@ -49,7 +49,6 @@ class chisoth_2T:
         self,
         PHA_files,
         arf_file_list,
-        flare_dir,
         FIP_elements,
         other_pars=["logT", "norm"],
         xcm_file="2T.xcm",
@@ -70,7 +69,6 @@ class chisoth_2T:
         """
         self.PHA_file_list = PHA_files
         self.arf_file_list = arf_file_list
-        self.flare_dir = flare_dir
         self.xcm_file = xcm_file
         self.FIP_elements = FIP_elements
         self.other_pars = other_pars
@@ -247,6 +245,7 @@ class chisoth_2T:
 
     def fit(
         self,
+        output_dir,
         min_E,
         max_E=15.0,
         cutoff_cps=1.0,
@@ -274,9 +273,10 @@ class chisoth_2T:
         """
         self.max_red_chi = max_red_chi
         self.sigma = sigma
+        self.output_dir = output_dir
 
         xp.AllData.clear()
-        out_dir = f"{self.flare_dir}/fit"
+        out_dir = f"{self.output_dir}/fit"
         if not os.path.isdir(out_dir):
             os.makedirs(out_dir)
         self.par_vals = []

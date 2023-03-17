@@ -69,12 +69,13 @@ def create_pha_files(flare_num, bin_size):
 #%% Create files
 def fit_xsm(
     flare_num,
-    FIP_elements=["Mg", "Si", "S", "Ar", "Ca", "Fe"],
+    FIP_elements=["Mg", "Si"],
     CREATE=False,
     BIN=False,
     threshold_counts=1,
     min_E=1.3,
     max_E=10.0,
+    do_dynamic_elements=True
 ):
     """
 
@@ -121,9 +122,8 @@ def fit_xsm(
     arf_file_list = [
         orig_i.removesuffix(".pha") + (".arf") for orig_i in orig_PHA_file_list
     ]
-    chiso = chisoth_2T(PHA_file_list, arf_file_list, flare_dir)
-    chiso.init_chisoth(FIP_elements)
-
+    chiso = chisoth_2T(PHA_file_list, arf_file_list, flare_dir,FIP_elements=FIP_elements)
     #%%Fit
-    df = chiso.fit(min_E, max_E)
+    df = chiso.fit(min_E, max_E,do_dynamic_elements=do_dynamic_elements)
+
     return df

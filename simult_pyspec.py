@@ -73,13 +73,14 @@ def create_pha_files(flare_num, bin_size=None):
 
 def fit_simult(
     flare_num,
-    FIP_elements=["Mg", "Si", "S", "Ar", "Ca", "Fe"],
+    FIP_elements=["Mg", "Si"],
     CREATE=False,
     BIN=False,
     cutoff_cps=1,
     min_E=1.3,
     max_E=10.0,
-    bin_size="27S"
+    bin_size="27S",
+    do_dynamic_elements=True
 ):
     """
     function to daxss fitting
@@ -136,7 +137,8 @@ def fit_simult(
         xsm_arf_file = xsm_PHA_file_i.removesuffix(".pha") + (".arf")
         arf_file_list.append(["USE_DEFAULT", xsm_arf_file])
     chiso = chisoth_2T(PHA_file_list, arf_file_list, flare_dir)
-    FIP_elements = ["Mg", "Si", "S", "Ar", "Fe"]
-    chiso.init_chisoth(FIP_elements)
-    df = chiso.fit(min_E, max_E)
+    FIP_elements = ["Mg", "Si"]
+
+    chiso = chisoth_2T(PHA_file_list, arf_file_list, flare_dir,FIP_elements=FIP_elements)
+    df = chiso.fit(min_E, max_E,do_dynamic_elements=do_dynamic_elements)
     return df

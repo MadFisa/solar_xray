@@ -58,15 +58,16 @@ class chisoth_2T:
         self.element_line_dict = element_line_dict
 
         # Xspec stuff
-        xp.AllModels.lmod("chspec", dirPath=f"{os.path.expanduser('~')}/chspec/")
-        xp.AllData.clear()
-        xp.AllModels.clear()
         xp.Fit.query = "no"  # No asking for uesr confirmation while fitting
         xp.Plot.xAxis = "keV"
         xp.Plot.yLog = True
         xp.Plot.xLog = False
         xp.Xset.parallel.leven = 6
         xp.Plot.device = "/xw"
+        # Load model
+        xp.AllModels.lmod("chspec", dirPath=f"{os.path.expanduser('~')}/chspec/")
+        xp.AllData.clear()
+        xp.AllModels.clear()
 
         # Figure out parameter index for other_pars which doesnot change during fitting
         self.other_par_idx = []

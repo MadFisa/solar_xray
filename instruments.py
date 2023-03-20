@@ -293,6 +293,7 @@ class xsm(instrument):
             os.makedirs(out_dir)
 
         PHA_Files = []
+        arf_files = []
 
         for i, time_i in enumerate(times_list[:-1]):
             met_i_beg = times_met[i]
@@ -317,4 +318,6 @@ class xsm(instrument):
             command = f"xsmgenspec l1file={l1file} specfile={outfile} spectype='time-integrated' hkfile={hkfile} safile={safile} gtifile={gtifile} arffile={arffile} tstart={met_i_beg} tstop={met_i_end} "
             os.system(command)
             PHA_Files.append(outfile)
+            arf_files.append(arffile)
+        self.set_pha_files(PHA_Files,arf_files)
         return outfile

@@ -177,10 +177,7 @@ def plot_simult(flare_num, instruments):
     Parameters
     ----------
     flare_num : int, flare number in observation_file
-    instruments : list, list of instruments to plot
-
-    Returns
-    -------
+    instruments : list, list of instrument names to plot
 
     """
     fit_dirs = []

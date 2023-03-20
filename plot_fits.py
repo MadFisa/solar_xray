@@ -170,7 +170,7 @@ def plot_individual(instrument, flare_num):
     plt.close('all')
 
 
-def plot_simult(flare_num, instruments):
+def plot_simult(flare_dir, flare_num, instruments):
     """
     Plots multiple instrument results simulatneously
 
@@ -182,7 +182,7 @@ def plot_simult(flare_num, instruments):
     """
     fit_dirs = []
 
-    flare_dir = f"./data/pha/flare_num_{flare_num}"
+    flare_dir = f"{flare_dir}/flare_num_{flare_num}"
     fit_dirs = [f"{flare_dir}/{instrument}/fit" for instrument in instruments]
     results_files = [f"{fit_dir}/results.csv" for fit_dir in fit_dirs]
     fig_dir = f"{flare_dir}/figures"

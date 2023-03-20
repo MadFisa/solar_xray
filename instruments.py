@@ -132,7 +132,7 @@ class instrument:
 
         Parameters
         ----------
-         model_calss: Class name of the model to use.
+         model_class: Class name of the model to use.
          model_args : dictionary, dictionary of arguments to model constructor.
          fit_args : dictionary, dictionary of arguments to fit function
 

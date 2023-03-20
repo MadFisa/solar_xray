@@ -257,7 +257,7 @@ def create_daxss_pha(
         hdul.writeto(filename_fits, overwrite=True)
         file_names_list.append(filename_fits)
 
-        return file_names_list
+    return file_names_list
 
 
 def read_tables(table_dir, tables_list=None):

@@ -30,6 +30,7 @@ class chisoth_2T:
         self,
         PHA_files,
         arf_file_list,
+        output_dir,
         FIP_elements,
         other_pars=["logT", "norm"],
         xcm_file="2T.xcm",
@@ -50,6 +51,7 @@ class chisoth_2T:
         """
         self.PHA_file_list = PHA_files
         self.arf_file_list = arf_file_list
+        self.output_dir = output_dir
         self.xcm_file = xcm_file
         self.FIP_elements = FIP_elements
         self.other_pars = other_pars
@@ -226,9 +228,9 @@ class chisoth_2T:
 
     def fit(
         self,
-        output_dir,
         min_E,
         max_E=15.0,
+        output_dir=None,
         cutoff_cps=1.0,
         do_dynamic_elements=False,
         do_error_calculation=True,
@@ -254,7 +256,8 @@ class chisoth_2T:
         """
         self.max_red_chi = max_red_chi
         self.sigma = sigma
-        self.output_dir = output_dir
+        if output_dir is not None:
+            self.output_dir = output_dir
 
         xp.AllData.clear()
         out_dir = f"{self.output_dir}/fit"
@@ -295,9 +298,9 @@ class chisoth_2T:
                 counts = np.array(s.values)
                 energies = np.array(s.energies)
                 # Implementing dynamic maximum cut off
-                idxs = np.where(counts < cutoff_cps)[0][0]
+                idxs = np.where(counts < cutoff_cps)[0]
                 if idxs.size > 0:
-                    cutoff_idx = np.where(counts < cutoff_cps)[0][0]
+                    cutoff_idx = idxs[0]
                     cutoff_energy = energies[cutoff_idx][1]
                     if cutoff_energy < max_E:
                         s.ignore(f"{cutoff_energy}-**")

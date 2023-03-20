@@ -118,7 +118,7 @@ class instrument:
             for pha_file_i in self.PHA_file_list
         ]
         os.makedirs(f"{self.output_dir}/grpd_pha")
-        do_grppha(out_PHA_file_list, PHA_file_list, min_count)
+        do_grppha( self.PHA_file_list,out_PHA_file_list, min_count)
         self.PHA_file_list = out_PHA_file_list
         return out_PHA_file_list
 
@@ -139,9 +139,9 @@ class instrument:
          out_out from fit
 
         """
-        self.model = model_class(self.PHA_file_list,self.arf_file_list,output_dir,**model_args)
-        self.fit_out = self.model.fit(**fit_args)
-        return self.fit_out
+        self.model = model_class(self.PHA_file_list,self.arf_file_list,self.output_dir,**model_args)
+        self.fit_output = self.model.fit(**fit_args)
+        return self.fit_output
 
 
 class daxss(instrument):
@@ -184,7 +184,7 @@ class daxss(instrument):
         self.arf_path = arf_path
         self.rmf_path = rmf_path
 
-    def create_pha_files(self, time_beg, time_end, bin_size, out_dir):
+    def create_pha_files(self, time_beg, time_end, bin_size):
         """
         Creates daxss pha files for given duration with given bin sizes.
         Need to run DAXSS.load_data and load data and rmf file before hand.
@@ -201,13 +201,13 @@ class daxss(instrument):
         A list of pha file names.
 
         """
-        super.create_pha_files(time_beg, time_end, bin_size)
-        self.daxss_flare = self.daxss_data.sel(time=slice(time_beg, time_end))
-        out_dir = out_dir + "/orig_pha"
+        super().create_pha_files(time_beg, time_end, bin_size)
+        self.flare_data = self.daxss_data.sel(time=slice(time_beg, time_end))
+        out_dir = self.output_dir + "/orig_pha"
         if not os.path.isdir(out_dir):
             os.makedirs(out_dir)
         self.PHA_file_list = create_daxss_pha(
-            self.daxss_flare,
+            self.flare_data,
             out_dir=out_dir,
             arf_path=self.arf_path,
             rmf_path=self.rmf_path,

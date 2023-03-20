@@ -15,11 +15,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import xspec as xp
-
-from DAXSS_pyspec import fit_daxss
+import glob
 from plot_fits import plot_individual, plot_simult
-from simult_pyspec import fit_simult
-from XSM_pyspec import fit_xsm
+import instruments
+from models import chisoth_2T
 
 best_flares = [7, 23, 33, 39, 42, 50, 64, 66, 85, 88, 89, 93, 97, 98, 99]
 good_flares = [2, 4, 6, 9, 32, 67, 69, 78, 83, 84, 86, 95]
@@ -28,30 +27,73 @@ meh_flares = [10, 11, 28, 37, 41, 45, 46, 63, 79, 91, 96]
 flares = best_flares + good_flares + meh_flares
 
 # instruments = ['xsm', 'daxss', 'simult']
-instruments = ["xsm", "daxss"]
+xsm = instruments.xsm()
+daxss = instruments.daxss()
+instruments_list = [xsm,daxss]
+instrument_names = ["xsm","daxss"]
+#%% Loading flare table
+observation_file = "./flare_filtering/data/flare_observation.h5"
+observation_table = pd.read_hdf(observation_file, "obs")
+
+CREATE = True
+BIN = True
+min_count = 10 # Minimum count for grppha
+#%% xsm Stuff
+xsm_folder = "./data/xsm/data/"
+bin_size = "27S"
+
+#%% For fitting
 FIP_elements = ["Mg", "Si"]
+min_E = 1.3
+max_E = 10.0
+bin_size = "27S"
+cutoff_cps = 1.
+
+do_dynamic_elements = True
+fit_args = {"min_E": min_E, "max_E": max_E, "do_dynamic_elements": do_dynamic_elements,"cutoff_cps":cutoff_cps}
+#%% Instrument specifics
+# xsm Stuff
+xsm_folder = "./data/xsm/data/"
+xsm.load_data(xsm_folder)
+
+DAXSS_file = "./data/daxss_solarSXR_level1_2022-02-14-mission_v2.0.0.ncdf"
+daxss_arf_path = "./data/minxss_fm3_ARF.fits"
+daxss_rmf_path = "./data/minxss_fm3_RMF.fits"
+daxss.load_data(DAXSS_file, daxss_rmf_path, daxss_arf_path)
+
 for flare_num in flares:
-    flare_dir = f"./data/pha/flare_num_{flare_num}"
-    daxss_out_dir = f"{flare_dir}/daxss"
-    xsm_out_dir = f"{flare_dir}/xsm"
-    simult_out_dir = f"{flare_dir}/simult"
-    if not os.path.isfile(f"{daxss_out_dir}/fit/results.csv"):
-        print(f"----------Fitting for flare {flare_num} for daxss----------")
-        shutil.rmtree(f"{daxss_out_dir}/fit", ignore_errors=True)
-        df_daxss = fit_daxss(flare_num=flare_num, FIP_elements=FIP_elements)
-    plot_individual(instrument="daxss", flare_num=flare_num)
-    if not os.path.isfile(f"{xsm_out_dir}/fit/results.csv"):
-        print(f"----------Fitting for flare {flare_num} for xsm--------------")
-        shutil.rmtree(f"{xsm_out_dir}/fit", ignore_errors=True)
-        df_xsm = fit_xsm(
-            flare_num=flare_num,
-            FIP_elements=FIP_elements,
-        )
-    plot_individual(instrument="xsm", flare_num=flare_num)
-    # if not os.path.isdir(simult_out_dir):
-    # print(f"Fitting for flare {flare_num} for daxss")
-    # df_simult = fit_simult(
-    # flare_num=flare_num, FIP_elements=FIP_elements, max_E=8.0
-    # )
-    # plot_individual(instrument="simult", flare_num=flare_num)
-    plot_simult(flare_num, instruments)
+    for instrument_i in instruments_list:
+        flare_dir = f"./data/pha_class/flare_num_{flare_num}/{instrument_i.name}"
+        xsm.set_output_dir(flare_dir)
+        flare = observation_table.loc[flare_num]
+        time_beg = flare["event_starttime"]
+        time_end = flare["event_endtime"]
+        #%% Create files if it does not exist
+        if not os.path.isdir(f"{flare_dir}/orig_pha/"):
+            CREATE = True
+        # else:
+            # PHA_file_list = glob.glob(f"{flare_dir}/orig_pha/*.pha")
+            # instrument_i.set_pha_files(PHA_file_list, ["USE_DEFAULT"] * len(PHA_file_list))
+        if CREATE:
+            shutil.rmtree(f"{flare_dir}/orig_pha/", ignore_errors=True)
+            instrument_i.create_pha_files(time_beg, time_end, bin_size=bin_size)
+
+        if not os.path.isdir(f"{flare_dir}/grpd_pha/"):
+            BIN = True
+        if BIN:
+            shutil.rmtree(f"{flare_dir}/grpd_pha/", ignore_errors=True)
+            instrument_i.do_grouping(min_count)
+        else:
+            PHA_file_list = glob.glob(f"{flare_dir}/grpd_pha/*.pha")
+            if instrument_i.name == "daxss":
+                instrument_i.set_pha_files(PHA_file_list, ["USE_DEFAULT"] * len(PHA_file_list))
+            if instrument_i.name == "xsm":
+                instrument_i.set_pha_files(PHA_file_list, instrument_i.arf_files)
+
+        #%% Fit
+        # Create model arguments
+        model_args = {"FIP_elements": FIP_elements}
+        instrument_i.fit(chisoth_2T, model_args, fit_args)
+        plot_individual(instrument_i.name,flare_dir,)
+    plot_simult(flare_num,instrument_names)
+

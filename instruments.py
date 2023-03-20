@@ -6,6 +6,7 @@ Github: github/MadFisa
 Description: Module containing fitiing codes for instruments
 """
 from fit_utils import do_grppha
+from data_utils import create_daxss_pha,read_daxss_data
 import shutil
 import os
 
@@ -17,12 +18,25 @@ class instrument:
         ----------
         output_dir : directory where all outputs will be saved.
         PHA_file_list : list of PHA files to be loaded.
+        arf_file_list : list of arf files to use, 
+                        use string 'USE_DEFAULT' as elements of list to use default arf file in PHA file.
 
         """
         self.name = "instrument"
+        self.output_dir = output_dir
+        self.set_pha_files(PHA_file_list, arf_file_list)
+
+    def set_pha_files(self,PHA_file_list=None,arf_file_list=None):
+        """
+        Parameters
+        ----------
+        PHA_file_list : list of PHA files to be loaded.
+        arf_file_list : list of arf files to use, 
+                        use string 'USE_DEFAULT' as elements of list to use default arf file in PHA file.
+
+        """
         self.PHA_file_list = PHA_file_list
         self.arf_file_list = arf_file_list
-        self.output_dir = output_dir
         
     def create_pha_files(self,time_beg,time_end,bin_size):
         """
@@ -33,7 +47,7 @@ class instrument:
         time_beg : begining of required time
         time_end : end of required time
         bin_size : bin_size, are required by pd.resamp, eg 27 second = '27S'
-        output_dir : directory to output
+        output_dir : directory to output, files will be put in output/orig_pha.
         GROUP: Whethere to do grppha or not
 
         Returns
@@ -94,3 +108,64 @@ class instrument:
         
 
 
+class DAXSS(instrument):
+
+    """Class to handle InspireSat 1 DAXSS"""
+
+    def __init__(self,output_dir,PHA_file_list=None,arf_file_list=None,):
+        """TODO: to be defined. """
+        instrument.__init__(self,output_dir,PHA_file_list=None,arf_file_list=None,)
+
+
+    def load_data(self, DAXSS_file,arf_path,rmf_path):
+        """
+        Function to load daxss data
+
+        Parameters
+        ----------
+        DAXSS_file : str, path to DAXSS netcdf file.
+        arf_path : str, path to DAXSS arf file.
+        rmf_path : str, path to DAXSS rmf file.
+
+        Returns
+        -------
+        TODO
+
+        """
+        
+        self.DAXSS_file = DAXSS_file
+        self.daxss_data = read_daxss_data(self.DAXSS_file)
+        self.arf_path = arf_path
+        self.rmf_path = rmf_path
+        
+    def create_pha_files(self,time_beg,time_end,bin_size,out_dir):
+        """
+        Creates daxss pha files for given duration with given bin sizes.
+        Need to run DAXSS.load_data and load data and rmf file before hand.
+
+        Parameters
+        ----------
+        time_beg : beginning of time for which PHA files to be created.
+        time_end : beginning of time for which PHA files to be created.
+        bin_size : str,bin size for binning. Expected in form of pandas.resample. i.e 27 second = '27S'
+        out_dir : directory to ouput file.
+
+        Returns
+        -------
+        A list of pha file names.
+
+        """
+        super.create_pha_files(time_beg,time_end,bin_size)
+        self.daxss_flare = self.daxss_data.sel(time=slice(time_beg, time_end))
+        out_dir=out_dir+"/orig_pha"
+        if not os.path.isdir(out_dir):
+            os.makedirs(out_dir)
+        self.PHA_file_list = create_daxss_pha(
+            self.daxss_flare,
+            out_dir=out_dir,
+            arf_path=self.arf_path,
+            rmf_path=self.rmf_path,
+            bin_size=self.bin_size,
+        )
+        self.set_pha_files(self.PHA_file_list,['USE_DEFAULT']*len(self.PHA_file_list))
+        return self.PHA_file_list

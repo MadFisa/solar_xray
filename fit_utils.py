@@ -314,9 +314,9 @@ class chisoth_2T:
                 counts = np.array(s.values)
                 energies = np.array(s.energies)
                 # Implementing dynamic maximum cut off
-                idxs = np.where(counts < cutoff_cps)[0][0]
+                idxs = np.where(counts < cutoff_cps)[0]
                 if idxs.size > 0:
-                    cutoff_idx = np.where(counts < cutoff_cps)[0][0]
+                    cutoff_idx = idxs[0]
                     cutoff_energy = energies[cutoff_idx][1]
                     if cutoff_energy < max_E:
                         s.ignore(f"{cutoff_energy}-**")

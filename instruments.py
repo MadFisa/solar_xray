@@ -5,7 +5,6 @@ Email: asifmp97@gmail.com
 Github: github/MadFisa
 Description: Module containing fitiing codes for instruments
 """
-from fit_utils import do_grppha
 from data_utils import create_daxss_pha,read_daxss_data
 import shutil
 import os
@@ -25,6 +24,24 @@ class instrument:
         self.name = "instrument"
         self.output_dir = output_dir
         self.set_pha_files(PHA_file_list, arf_file_list)
+
+    def do_grppha(
+        file_list,
+        out_put_file_list,
+        threshold_counts,
+    ):
+        """
+        The function will do gpb pha on files based on cutoff cps.
+
+        Parameters
+        ----------
+        file_list : list of files
+        cutoff_cps : cutoff cps
+        out_put_file_list : list of output file names.
+        """
+        for in_file, out_file in zip(file_list, out_put_file_list):
+            command = f"grppha infile='{in_file}' outfile='!{out_file}' comm='GROUP MIN {threshold_counts}&exit' "
+            os.system(command)
 
     def set_pha_files(self,PHA_file_list=None,arf_file_list=None):
         """
@@ -81,7 +98,7 @@ class instrument:
             pha_file_i.replace("/orig_pha/", "/grpd_pha/") for pha_file_i in self.PHA_file_list
         ]
         os.makedirs(f"{self.output_dir}/grpd_pha")
-        do_grppha(out_PHA_file_list, PHA_file_list, min_count)
+        self.do_grppha(out_PHA_file_list, PHA_file_list, min_count)
         self.PHA_file_list = out_PHA_file_list
         return out_PHA_file_list
 

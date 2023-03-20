@@ -1,129 +1,77 @@
-#!/usr/bin/env python3
 """
-File: DAXSS_pyspec.py
+File: XSM_pyspec.py
 Author: Asif Mohamed Mandayapuram
 Email: asifmp97@gmail.com
 Github: github/MadFisa
-Description: Code to analyse XSM flares.
+Description: Code to fit flare model to xsm data.
 """
 
 import glob
 import os
 import shutil
-from datetime import datetime
 
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
+import xspec as xp
 
-from fit_utils import chisoth_2T, do_grppha
+import instruments
+from models import chisoth_2T
 from plot_fits import plot_individual
 
 plt.style.use("fivethirtyeight")
 
-xsm_origin_time = datetime(2017, 1, 1)
+instrument = "xsm"
+#%% Loading flare table
 observation_file = "./flare_filtering/data/flare_observation.h5"
+observation_table = pd.read_hdf(observation_file, "obs")
 
-utc2met = lambda time: (time - xsm_origin_time).total_seconds()
+CREATE = False
+BIN = False
+min_count = 20  # Minimum count for grppha
+#%% xsm Stuff
+xsm_folder = "./data/xsm/data/"
+bin_size = "27S"
 
+#%% For fitting
+FIP_elements = ["Mg", "Si"]
+min_E = 1.3
+max_E = 10.0
+bin_size = "27S"
 
-def create_pha_files(flare_num, bin_size):
-    flare_dir = f"./data/pha/flare_num_{flare_num}/xsm"
-    observation_table = pd.read_hdf(observation_file, "obs")
-    flare = observation_table.loc[flare_num]
-    time_beg = flare["event_starttime"]
-    time_end = flare["event_endtime"]
-    # xsm_lc = flare["xsm_lc"]
-    # daxss_lc = flare["daxss_lc"]
-    times_list = pd.date_range(time_beg, time_end, freq=bin_size)
-    times_met = utc2met(times_list)
-    #%% Create PHA files
-    out_dir = f"{flare_dir}/orig_pha/"
-    if not os.path.isdir(out_dir):
-        os.makedirs(out_dir)
+do_dynamic_elements = True
 
-    for i, time_i in enumerate(times_list[:-1]):
-        met_i_beg = times_met[i]
-        met_i_end = times_met[i + 1]
-        year = time_i.year
-        month = time_i.month
-        day = time_i.day
+#%% Load instrument
+xsm = instruments.xsm()
+xsm.load_data(xsm_folder)
 
-        root_dir = f"./data/xsm/data/{year}/{str(month).zfill(2)}/{str(day).zfill(2)}"
-        file_basename = f'ch2_xsm_{time_i.strftime("%Y%m%d")}_v1_level'
-        l1file = f"{root_dir}/raw/{file_basename}1.fits"
-        hkfile = f"{root_dir}/raw/{file_basename}1.hk"
-        safile = f"{root_dir}/raw/{file_basename}1.sa"
-        gtifile = f"{root_dir}/calibrated/{file_basename}2.gti"
-        outfile = (
-            f"{flare_dir}/orig_pha/XSM_{np.datetime_as_string(time_i.to_numpy())}.pha"
-        )
-        arffile = (
-            f"{flare_dir}/orig_pha/XSM_{np.datetime_as_string(time_i.to_numpy())}.arf"
-        )
+#%% Flare specific stuff
+flare_num = 7
+flare_dir = f"./data/pha_class/flare_num_{flare_num}/{instrument}"
+xsm.set_output_dir(flare_dir)
+flare = observation_table.loc[flare_num]
+time_beg = flare["event_starttime"]
+time_end = flare["event_endtime"]
+#%% Create files if it does not exist
+if not os.path.isdir(f"{flare_dir}/orig_pha/"):
+    CREATE = True
+else:
+    PHA_file_list = glob.glob(f"{flare_dir}/orig_pha/*.pha")
+    xsm.set_pha_files(PHA_file_list, ["USE_DEFAULT"] * len(PHA_file_list))
+if CREATE:
+    shutil.rmtree(f"{flare_dir}/orig_pha/", ignore_errors=True)
+    xsm.create_pha_files(time_beg, time_end, bin_size=bin_size)
 
-        command = f"xsmgenspec l1file={l1file} specfile={outfile} spectype='time-integrated' hkfile={hkfile} safile={safile} gtifile={gtifile} arffile={arffile} tstart={met_i_beg} tstop={met_i_end} "
-        os.system(command)
+if not os.path.isdir(f"{flare_dir}/grpd_pha/"):
+    BIN = True
+if BIN:
+    shutil.rmtree(f"{flare_dir}/grpd_pha/", ignore_errors=True)
+    xsm.do_grouping(min_count)
+else:
+    PHA_file_list = glob.glob(f"{flare_dir}/grpd_pha/*.pha")
+    xsm.set_pha_files(PHA_file_list, ["USE_DEFAULT"] * len(PHA_file_list))
 
-
-#%% Create files
-def fit_xsm(
-    flare_num,
-    FIP_elements=["Mg", "Si"],
-    CREATE=False,
-    BIN=False,
-    threshold_counts=1,
-    min_E=1.3,
-    max_E=10.0,
-    do_dynamic_elements=True
-):
-    """
-
-    Parameters
-    ----------
-    flare_num : int, index of flare in the list.
-    FIP_elements : list of elements to be considered as FIP.
-    CREATE : bool, Whether to create_pha_files.
-    BIN : bool, Whetther to bin the pha files using grbpha
-    threshold_counts: float, threshold cps to bin i.e the grppha
-    min_E : float, minimum energy of spectra to start fit from
-    max_E : float, optional, maximum energy to fit from
-
-    Returns
-    -------
-    Datframe with results
-
-    """
-    # Create initial PHA files
-    flare_dir = f"./data/pha/flare_num_{flare_num}/xsm"
-    if not os.path.isdir(f"{flare_dir}/orig_pha/"):
-        CREATE = True
-    if CREATE:
-        shutil.rmtree(f"{flare_dir}/orig_pha/", ignore_errors=True)
-        resamp = create_pha_files(flare_num, bin_size="27S")
-
-    # Run grppha on files to group
-    orig_PHA_file_list = glob.glob(f"{flare_dir}/orig_pha/*.pha")
-    orig_PHA_file_list.sort()
-    PHA_file_list = [
-        orig_i.replace("/orig_pha/", "/grpd_pha/") for orig_i in orig_PHA_file_list
-    ]
-
-    if not os.path.isdir(f"{flare_dir}/grpd_pha/"):
-        BIN = True
-    if BIN:
-        shutil.rmtree(f"{flare_dir}/grpd_pha/", ignore_errors=True)
-        os.makedirs(f"{flare_dir}/grpd_pha")
-        do_grppha(orig_PHA_file_list, PHA_file_list, threshold_counts)
-        os.system(f"cp {flare_dir}/orig_pha/*.arf {flare_dir}/grpd_pha/")
-
-    # #%% Initialise
-
-    arf_file_list = [
-        orig_i.removesuffix(".pha") + (".arf") for orig_i in orig_PHA_file_list
-    ]
-    chiso = chisoth_2T(PHA_file_list, arf_file_list, flare_dir,FIP_elements=FIP_elements)
-    #%%Fit
-    df = chiso.fit(min_E, max_E,do_dynamic_elements=do_dynamic_elements)
-
-    return df
+#%% Fit
+# Create model arguments
+model_args = {"FIP_elements": FIP_elements}
+fit_args = {"min_E": min_E, "max_E": max_E, "do_dynamic_elements": do_dynamic_elements}
+xsm.fit(chisoth_2T, model_args, fit_args)

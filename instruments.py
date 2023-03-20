@@ -11,7 +11,7 @@ import os
 
 class instrument:
     """Parent class for instruents"""
-    def __init__(self,output_dir,PHA_file_list=None,arf_file_list=None,):
+    def __init__(self,output_dir=None,PHA_file_list=None,arf_file_list=None,):
         """
         Parameters
         ----------
@@ -22,7 +22,7 @@ class instrument:
 
         """
         self.name = "instrument"
-        self.output_dir = output_dir
+        self.set_output_dir(output_dir)
         self.set_pha_files(PHA_file_list, arf_file_list)
 
     def do_grppha(
@@ -42,6 +42,17 @@ class instrument:
         for in_file, out_file in zip(file_list, out_put_file_list):
             command = f"grppha infile='{in_file}' outfile='!{out_file}' comm='GROUP MIN {threshold_counts}&exit' "
             os.system(command)
+
+    def set_output_dir(self, output_dir):
+        """
+        Sets out directory for files
+
+        Parameters
+        ----------
+        out_dir : str, path to out_dir
+        """
+        self.output_dir = output_dir
+
 
     def set_pha_files(self,PHA_file_list=None,arf_file_list=None):
         """
@@ -125,16 +136,17 @@ class instrument:
         
 
 
-class DAXSS(instrument):
+class daxss(instrument):
 
     """Class to handle InspireSat 1 DAXSS"""
 
-    def __init__(self,output_dir,PHA_file_list=None,arf_file_list=None,):
+    def __init__(self,output_dir=None,PHA_file_list=None,arf_file_list=None,):
         """TODO: to be defined. """
         instrument.__init__(self,output_dir,PHA_file_list=None,arf_file_list=None,)
+        self.name="daxss"
 
 
-    def load_data(self, DAXSS_file,arf_path,rmf_path):
+    def load_data(self, DAXSS_file,rmf_path,arf_path):
         """
         Function to load daxss data
 

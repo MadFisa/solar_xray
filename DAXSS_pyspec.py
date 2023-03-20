@@ -75,5 +75,5 @@ else:
 #%% Fit
 # Create model arguments
 model_args = {"FIP_elements": FIP_elements}
-fit_args = {"min_E": min_E, "max_E": max_E, "do_dynamic_elements": do_dynamic_elements}
+fit_args = {"min_E": min_E, "max_E": max_E, "do_dynamic_elements": do_dynamic_elements,"cutoff_cps":10}
 daxss.fit(chisoth_2T, model_args, fit_args)

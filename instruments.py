@@ -7,7 +7,9 @@ Description: Module containing fitiing codes for instruments
 """
 import os
 import shutil
-
+from datetime import datetime
+import pandas as pd
+import numpy as np 
 from data_utils import create_daxss_pha, read_daxss_data
 
 
@@ -217,3 +219,102 @@ class daxss(instrument):
             self.PHA_file_list, ["USE_DEFAULT"] * len(self.PHA_file_list)
         )
         return self.PHA_file_list
+
+class xsm(instrument):
+    """Class to handle Chaandrayan 2 XSM"""
+    def __init__(
+        self,
+        output_dir=None,
+        PHA_file_list=None,
+        arf_file_list=None,
+    ):
+        """TODO: to be defined."""
+        instrument.__init__(
+            self,
+            output_dir,
+            PHA_file_list=None,
+            arf_file_list=None,
+        )
+        self.name = "xsm"
+        self.origin_time = datetime(2017, 1, 1)
+
+    def utc2met(self, time):
+        """
+        Converts utc time to XSM MET(Mission Elapsed Time) time.
+
+        Parameters
+        ----------
+        time : list of times in datetime format
+
+        Returns
+        -------
+        list of met times
+
+        """
+        return (time - self.origin_time).total_seconds()
+
+    def load_data(self, xsm_folder):
+        """
+        Function to load data from xsm folder. Required to run before create_pha_files. xsm folder should have same structure as extracted xsm files i.e {xsm_folder}/{year}/{month}/{day}/
+
+        Parameters
+        ----------
+        xsm_folder : TODO
+
+        Returns
+        -------
+        TODO
+
+        """
+        self.xsm_folder = xsm_folder
+
+    def create_pha_files(self, time_beg, time_end, bin_size):
+        """
+        Creates XSM pha files for given duration with given bin sizes.
+        Need to run XSM.load_data and load data and rmf file before hand.
+
+        Parameters
+        ----------
+        time_beg : beginning of time for which PHA files to be created.
+        time_end : beginning of time for which PHA files to be created.
+        bin_size : str,bin size for binning. Expected in form of pandas.resample. i.e 27 second = '27S'
+        out_dir : directory to ouput file.
+
+        Returns
+        -------
+        A list of pha file names.
+
+        """
+        super().create_pha_files(time_beg, time_end, bin_size)
+        out_dir = self.output_dir + "/orig_pha"
+        times_list = pd.date_range(time_beg, time_end, freq=bin_size)
+        times_met = self.utc2met(times_list)
+        if not os.path.isdir(out_dir):
+            os.makedirs(out_dir)
+
+        PHA_Files = []
+
+        for i, time_i in enumerate(times_list[:-1]):
+            met_i_beg = times_met[i]
+            met_i_end = times_met[i + 1]
+            year = time_i.year
+            month = time_i.month
+            day = time_i.day
+
+            root_dir = f"{self.xsm_folder}/{year}/{str(month).zfill(2)}/{str(day).zfill(2)}"
+            file_basename = f'ch2_xsm_{time_i.strftime("%Y%m%d")}_v1_level'
+            l1file = f"{root_dir}/raw/{file_basename}1.fits"
+            hkfile = f"{root_dir}/raw/{file_basename}1.hk"
+            safile = f"{root_dir}/raw/{file_basename}1.sa"
+            gtifile = f"{root_dir}/calibrated/{file_basename}2.gti"
+            outfile = (
+                f"{self.output_dir}/orig_pha/XSM_{np.datetime_as_string(time_i.to_numpy())}.pha"
+            )
+            arffile = (
+                f"{self.output_dir}/orig_pha/XSM_{np.datetime_as_string(time_i.to_numpy())}.arf"
+            )
+
+            command = f"xsmgenspec l1file={l1file} specfile={outfile} spectype='time-integrated' hkfile={hkfile} safile={safile} gtifile={gtifile} arffile={arffile} tstart={met_i_beg} tstop={met_i_end} "
+            os.system(command)
+            PHA_Files.append(outfile)
+        return outfile

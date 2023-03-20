@@ -12,115 +12,68 @@ import shutil
 
 import matplotlib.pyplot as plt
 import pandas as pd
+import xspec as xp
 
-from data_utils import create_daxss_pha, read_daxss_data
-from fit_utils import chisoth_2T, do_grppha
+import instruments
+from models import chisoth_2T
 from plot_fits import plot_individual
 
 plt.style.use("fivethirtyeight")
 
+instrument = "daxss"
+#%% Loading flare table
 observation_file = "./flare_filtering/data/flare_observation.h5"
+observation_table = pd.read_hdf(observation_file, "obs")
+
+CREATE = True
+BIN = True
+min_count = 20  # Minimum count for grppha
+#%% DAXSS Stuff
 DAXSS_file = "./data/daxss_solarSXR_level1_2022-02-14-mission_v2.0.0.ncdf"
-daxss_data = read_daxss_data(DAXSS_file)
+daxss_arf_path = "./data/minxss_fm3_ARF.fits"
+daxss_rmf_path = "./data/minxss_fm3_RMF.fits"
+bin_size = "27S"
 
+#%% For fitting
+FIP_elements = ["Mg", "Si"]
+min_E = 1.3
+max_E = 10.0
+bin_size = "27S"
 
-#%% Create files
-def create_pha_files(flare_num, bin_size=None):
-    """
-    creates pha files from data and flare_number
-    Parameters
-    ----------
-    flare_num : int, flare_number(index) in the observation_table.
+do_dynamic_elements = True
 
-    Returns
-    -------
-    group object, not particularly importane
+#%% Load instrument
+daxss = instruments.daxss()
+daxss.load_data(DAXSS_file, daxss_rmf_path, daxss_arf_path)
 
-    """
-    observation_table = pd.read_hdf(observation_file, "obs")
-    flare_dir = f"./data/pha/flare_num_{flare_num}/daxss"
-    #%% Chosse flare
-    flare = observation_table.loc[flare_num]
-    time_beg = flare["event_starttime"]
-    time_end = flare["event_endtime"]
-    daxss_flare = daxss_data.sel(time=slice(time_beg, time_end))
+#%% Flare specific stuff
+flare_num = 7
+flare_dir = f"./data/pha_class/flare_num_{flare_num}/{instrument}"
+daxss.set_output_dir(flare_dir)
+flare = observation_table.loc[flare_num]
+time_beg = flare["event_starttime"]
+time_end = flare["event_endtime"]
+#%% Create files if it does not exist
+if not os.path.isdir(f"{flare_dir}/orig_pha/"):
+    CREATE = True
+else:
+    PHA_file_list = glob.glob(f"{flare_dir}/orig_pha/*.pha")
+    daxss.set_pha_files(PHA_file_list, ["USE_DEFAULT"] * len(PHA_file_list))
+if CREATE:
+    shutil.rmtree(f"{flare_dir}/orig_pha/", ignore_errors=True)
+    daxss.create_pha_files(time_beg, time_end, bin_size=bin_size)
 
-    #%% Create PHA files
-    arf_path = "./data/minxss_fm3_ARF.fits"
-    rmf_path = "./data/minxss_fm3_RMF.fits"
-    out_dir = f"{flare_dir}/orig_pha/"
-    if not os.path.isdir(out_dir):
-        os.makedirs(out_dir)
-    pp = create_daxss_pha(
-        daxss_flare,
-        out_dir=out_dir,
-        arf_path=arf_path,
-        rmf_path=rmf_path,
-        bin_size=bin_size,
-    )
-    return pp
+if not os.path.isdir(f"{flare_dir}/grpd_pha/"):
+    BIN = True
+if BIN:
+    shutil.rmtree(f"{flare_dir}/grpd_pha/", ignore_errors=True)
+    daxss.do_grouping(min_count)
+else:
+    PHA_file_list = glob.glob(f"{flare_dir}/grpd_pha/*.pha")
+    daxss.set_pha_files(PHA_file_list, ["USE_DEFAULT"] * len(PHA_file_list))
 
-
-def fit_daxss(
-    flare_num,
-    FIP_elements=["Mg", "Si"],
-    CREATE=False,
-    BIN=False,
-    cutoff_cps=1,
-    min_E=1.3,
-    max_E=10.0,
-    bin_size="27S",
-    do_dynamic_elements=True
-):
-    """
-    function to daxss fitting
-
-    Parameters
-    ----------
-    flare_num : int, index of flare in the list.
-    FIP_elements : list of elements to be considered as FIP.
-    CREATE : bool, Whether to create_pha_files.
-    BIN : bool, Whetther to bin the pha files using grbpha
-    cutoff_cps: float, threshold cps to bin i.e the grppha
-    min_E : float, minimum energy of spectra to start fit from
-    max_E : float, optional, maximum energy to fit from
-
-    Returns
-    -------
-    Datframe with results
-
-    """
-    # Create initial PHA files
-    flare_dir = f"./data/pha/flare_num_{flare_num}/daxss"
-    if not os.path.isdir(f"{flare_dir}/orig_pha/"):
-        CREATE = True
-    if CREATE:
-        shutil.rmtree(f"{flare_dir}/orig_pha/", ignore_errors=True)
-        os.makedirs(f"{flare_dir}/orig_pha")
-        resamp = create_pha_files(flare_num, bin_size=bin_size)
-
-    # Run grppha on files to group
-    orig_PHA_file_list = glob.glob(f"{flare_dir}/orig_pha/*.pha")
-    orig_PHA_file_list.sort()
-    PHA_file_list = [
-        orig_i.replace("/orig_pha/", "/grpd_pha/") for orig_i in orig_PHA_file_list
-    ]
-
-    if not os.path.isdir(f"{flare_dir}/grpd_pha/"):
-        BIN = True
-    cutoff_cps = 1
-    if BIN:
-        shutil.rmtree(f"{flare_dir}/grpd_pha/", ignore_errors=True)
-        os.makedirs(f"{flare_dir}/grpd_pha")
-        do_grppha(orig_PHA_file_list, PHA_file_list, cutoff_cps)
-
-    # PHA_file_list = orig_PHA_file_list
-    # #%% Initialise
-
-    arf_file_list = ["USE_DEFAULT"] * len(PHA_file_list)
-    chiso = chisoth_2T(PHA_file_list, arf_file_list, flare_dir,FIP_elements=FIP_elements)
-    #%%Fit
-
-    df = chiso.fit(min_E, max_E,do_dynamic_elements=do_dynamic_elements)
-    return df
-
+#%% Fit
+# Create model arguments
+model_args = {"FIP_elements": FIP_elements}
+fit_args = {"min_E": min_E, "max_E": max_E, "do_dynamic_elements": do_dynamic_elements}
+daxss.fit(chisoth_2T, model_args, fit_args)

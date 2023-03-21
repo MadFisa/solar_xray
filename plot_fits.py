@@ -24,7 +24,7 @@ date_formatter = DateFormatter("%H:%M")
 # define data
 observation_file = "./flare_filtering/data/flare_observation.h5"
 
-def plot_individual(instrument, flare_num):
+def plot_individual(instrument, data_dir,flare_num):
     """
     Function to plot individual components of the fit.
 
@@ -37,7 +37,7 @@ def plot_individual(instrument, flare_num):
     -------
 
     """
-    flare_dir = f"./data/pha/flare_num_{flare_num}/{instrument}"
+    flare_dir = f"{data_dir}/flare_num_{flare_num}/{instrument}"
     out_dir = f"{flare_dir}/fit"
     results = f'{out_dir}/results.csv'
     fig_dir=f'{out_dir}/figures'

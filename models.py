@@ -35,9 +35,9 @@ class model:
 
 
         """
-        self._PHA_files_list = PHA_files_list
-        self._arf_files_list = arf_files_list
-        self._output_dir = output_dir
+        self.PHA_files_list = PHA_files_list
+        self.arf_files_list = arf_files_list
+        self.output_dir = output_dir
         xp.Fit.query = "no"  # No asking for uesr confirmation while fitting
         xp.Plot.xAxis = "keV"
         xp.Plot.yLog = True
@@ -52,11 +52,11 @@ class model:
 
         Parameters
         ----------
-        file_idx : index of the file in self.PHA_file_list to load.
+        file_idx : index of the file in self.PHA_files_list to load.
 
         """
-        PHA_files = self.PHA_file_list[file_idx]
-        arf_files = self.arf_file_list[file_idx]
+        PHA_files = self.PHA_files_list[file_idx]
+        arf_files = self.arf_files_list[file_idx]
         if type(PHA_files) != list:
             PHA_files = [PHA_files]
             arf_files = [arf_files]
@@ -198,10 +198,6 @@ class chisoth(model):
 class chisoth_2T(chisoth):
     """class for running 2T isothermal models"""
 
-    PHA_file_list = None
-    FIP_elements = None
-    FIRST_TIME = True
-    flare_dir = None
     colum_names = None
     arf_files_list = None
     m = None
@@ -248,7 +244,7 @@ class chisoth_2T(chisoth):
 
         times = [
             os.path.basename(PHA_file_i).removesuffix(".pha")[-29:]
-            for PHA_file_i in self.PHA_file_list
+            for PHA_file_i in self.PHA_files_list
         ]
         self.times = pd.to_datetime(times)
 
@@ -313,18 +309,18 @@ class chisoth_2T(chisoth):
         if not os.path.isdir(out_dir):
             os.makedirs(out_dir)
         self.par_vals = []
-        PHA_file_array = np.array(self.PHA_file_list)
+        PHA_files_array = np.array(self.PHA_files_list)
 
         # Check if the there is multiple instruments
-        if PHA_file_array.ndim == 1:
+        if PHA_files_array.ndim == 1:
             file_names = [
                 os.path.basename(PHA_file).removesuffix(".pha")
-                for PHA_file in PHA_file_array
+                for PHA_file in PHA_files_array
             ]
         else:
             file_names = [
                 "simult" + os.path.basename(PHA_file).removesuffix(".pha")[-30:]
-                for PHA_file in PHA_file_array[:, 0]
+                for PHA_file in PHA_files_array[:, 0]
             ]
         #%% Fit
         # Iterate through th files

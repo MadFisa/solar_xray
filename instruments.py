@@ -6,6 +6,7 @@ Github: github/MadFisa
 Description: Module containing fitiing codes for instruments
 """
 import os
+import glob
 import shutil
 from datetime import datetime
 import pandas as pd
@@ -317,7 +318,10 @@ class xsm(instrument):
 
             command = f"xsmgenspec l1file={l1file} specfile={outfile} spectype='time-integrated' hkfile={hkfile} safile={safile} gtifile={gtifile} arffile={arffile} tstart={met_i_beg} tstop={met_i_end} "
             os.system(command)
-            PHA_Files.append(outfile)
-            arf_files.append(arffile)
+            # PHA_Files.append(outfile)
+            # arf_files.append(arffile)
+
+        PHA_Files = glob.glob(f"{out_dir}/*.pha") # Had to do this way because command can faile some times due to no GTI
+        arf_files = [ pha_i.replace(".pha",".arf") for pha_i in PHA_Files]
         self.set_pha_files(PHA_Files,arf_files)
-        return outfile
+        return PHA_Files

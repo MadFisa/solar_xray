@@ -281,60 +281,6 @@ class chisoth(model):
                     fit_elements.append(dyn_element_i)
         return fit_elements
 
-
-class chisoth_2T(chisoth):
-    """class for running 2T isothermal models"""
-
-    colum_names = None
-    arf_files_list = None
-    m = None
-    fit_elements_list = []
-
-    def __init__(
-        self,
-        PHA_files_list,
-        arf_file_list,
-        output_dir,
-        FIP_elements,
-        other_pars=["logT", "norm"],
-        xcm_file="2T.xcm",
-    ):
-        """
-        Initialises few things for xspec
-
-        Parameters
-        ----------
-        PHA_files : list of PHA files to perform fit on
-        arf_files : arf files corresponding to the PHA_files
-        flare_dir : directory to save results to
-        FIP_elements : list of elements, these elements will be alway included in fitting.
-        other_pars : non-element fit pars.
-        xcm_file : str, path to xcm file defing the model.
-        """
-        super().__init__(
-            PHA_files_list,
-            arf_file_list,
-            output_dir,
-            FIP_elements,
-            other_pars,
-            xcm_file,
-        )
-
-        # Figure out parameter index for other_pars which doesnot change during fitting
-        self.other_par_idx = []
-        xp.Xset.restore(self.xcm_file)
-        self.m = xp.AllModels(1, "flare")
-        for component_i in self.m.componentNames:
-            for other_par_i in self.other_pars:
-                idx_temp = eval(f"self.m.{component_i}.{other_par_i}.index")
-                self.other_par_idx.append(idx_temp)
-
-        times = [
-            os.path.basename(PHA_file_i).removesuffix(".pha")[-29:]
-            for PHA_file_i in self.PHA_files_list
-        ]
-        self.times = pd.to_datetime(times)
-
     def create_err_string(self, elements_list, max_red_chi, sigma):
         """
 
@@ -355,39 +301,21 @@ class chisoth_2T(chisoth):
         )  # error string to be used later with xspec err command
         print(f"error string is {self.err_string}")
 
-    def fit(
-        self,
-        min_E,
-        max_E=15.0,
-        output_dir=None,
-        cutoff_cps=1.0,
-        do_dynamic_elements=False,
-        do_error_calculation=True,
-        max_red_chi=100.0,
-        sigma=1.0,
-        element_line_dict={"S": 2.45, "Ar": 3.2, "Ca": 3.9, "Fe": 6.5},
-    ):
+    def prefit(self, output_dir):
         """
-        fits the data with models.
+        Function containing stuff to do before prefitting
 
         Parameters
         ----------
-        min_E : minimum energy cut off for fitting
-        max_E : maxmimum energy cut off for fitting
-        cutoff_cps : minimum number of counts to be considered to be inclued in fit.
-        do_dynamic_elements : bool, will dynamically add more elements to fit depending on counts.
+        out_dir : directory to output files to .
 
-        do_error_calculation: bool, whether to do errorr calculation or not.
-        max_red_chi : float,  maximum allowed red_chi square value for error calculations.
-        sigma : float, sigma for error calculation
-        element_line_dict : a dictionary with keys as elements and values line energies in keV. Used to dynamically add elements to fit.
-        refer to find_fit_elements documentation for more information.
         Returns
         -------
-        df, pandas dataframe with results
+        file_names, a list of file names that will be used as prefix to create outputs
+        out_dir, directory to which fit results will be written to
+
         """
-        self.max_red_chi = max_red_chi
-        self.sigma = sigma
+
         if output_dir is not None:
             self.output_dir = output_dir
 
@@ -409,9 +337,42 @@ class chisoth_2T(chisoth):
                 "simult" + os.path.basename(PHA_file).removesuffix(".pha")[-30:]
                 for PHA_file in PHA_files_array[:, 0]
             ]
-        suffix = ["", "_2"]  # TODO: Make this more general
-        #%% Fit
-        # Iterate through th files
+        return file_names
+
+    def do_fit(
+        self,
+        file_names,
+        out_dir,
+        min_E,
+        max_E,
+        cutoff_cps,
+        do_dynamic_elements,
+        do_error_calculation,
+        element_line_dict,
+        suffix,
+    ):
+        """
+        A function that ill iterate through output file_names and do fitting.
+
+        Parameters
+        ----------
+        file_names : file_names for output
+        min_E : minimum energy cut off for fitting
+        max_E : maxmimum energy cut off for fitting
+        cutoff_cps : minimum number of counts to be considered to be inclued in fit.
+        do_dynamic_elements : bool, will dynamically add more elements to fit depending on counts.
+        do_error_calculation: bool, whether to do errorr calculation or not.
+        max_red_chi : float,  maximum allowed red_chi square value for error calculations.
+        sigma : float, sigma for error calculation
+        element_line_dict : a dictionary with keys as elements and values line energies in keV. Used to dynamically add elements to fit.
+        refer to find_fit_elements documentation for more information.
+
+        Returns
+        -------
+         dictionary of parvals.
+
+        """
+        self.par_vals = []
         for i, f_name in enumerate(file_names):
             xp.AllData.clear()
             xp.AllModels.clear()
@@ -451,18 +412,32 @@ class chisoth_2T(chisoth):
                 xp.Fit.perform()
                 red_chi = xp.Fit.testStatistic / xp.Fit.dof
             # Finding errors
-            self.create_err_string(fit_elements, max_red_chi, sigma)
+            self.create_err_string(fit_elements, self.max_red_chi, self.sigma)
             xp.Fit.error(self.err_string)
             fit_pars = self.other_pars + fit_elements
 
             # Store the parameter values for later to turn into dataframe
-            temp_col = self.create_rows(fit_pars, suffix)
-            self.par_vals.append(temp_col)
+            temp_row = self.create_rows(fit_pars, suffix)
+            self.par_vals.append(temp_row)
             xp.Xset.save(f"{out_dir}/{f_name}.xcm")  # Save model to xcm file
             xp.Xset.closeLog()
             self.plot_fit(f"{out_dir}/{f_name}.png")
-        #%% Make a data frame
+        return self.par_vals
 
+    def save_fit(self, out_dir):
+        """
+        Saves current fit result to output_dir
+
+        Returns
+        -------
+        TODO
+
+        """
+        times = [
+            os.path.basename(PHA_file_i).removesuffix(".pha")[-29:]
+            for PHA_file_i in self.PHA_files_list
+        ]
+        self.times = pd.to_datetime(times)
         df = pd.DataFrame(self.par_vals, index=self.times)
         # Lets rearrange the columns for to keep Chi and reduced Chi at last
         old_cols = list(df.columns)
@@ -474,3 +449,140 @@ class chisoth_2T(chisoth):
         df.to_csv(f"{out_dir}/results.csv")
         df.to_hdf(f"{out_dir}/results.h5", "results")
         return df
+
+
+class chisoth_2T(chisoth):
+    """class for running 2T isothermal models"""
+
+    colum_names = None
+    arf_files_list = None
+    m = None
+    fit_elements_list = []
+
+    def __init__(
+        self,
+        PHA_files_list,
+        arf_files_list,
+        output_dir,
+        FIP_elements,
+        other_pars=["logT", "norm"],
+        xcm_file="2T.xcm",
+    ):
+        """
+        Initialises few things for xspec
+
+        Parameters
+        ----------
+        PHA_files : list of PHA files to perform fit on
+        arf_files : arf files corresponding to the PHA_files
+        flare_dir : directory to save results to
+        FIP_elements : list of elements, these elements will be alway included in fitting.
+        other_pars : non-element fit pars.
+        xcm_file : str, path to xcm file defing the model.
+        """
+        super().__init__(
+            PHA_files_list,
+            arf_files_list,
+            output_dir,
+            FIP_elements,
+            other_pars,
+            xcm_file,
+        )
+
+        # Figure out parameter index for other_pars which doesnot change during fitting
+        self.other_par_idx = []
+        xp.Xset.restore(self.xcm_file)
+        self.m = xp.AllModels(1, "flare")
+        for component_i in self.m.componentNames:
+            for other_par_i in self.other_pars:
+                idx_temp = eval(f"self.m.{component_i}.{other_par_i}.index")
+                self.other_par_idx.append(idx_temp)
+
+    def fit(
+        self,
+        min_E,
+        max_E=15.0,
+        output_dir=None,
+        cutoff_cps=1.0,
+        do_dynamic_elements=False,
+        do_error_calculation=True,
+        max_red_chi=100.0,
+        sigma=1.0,
+        element_line_dict={"S": 2.45, "Ar": 3.2, "Ca": 3.9, "Fe": 6.5},
+    ):
+        """
+        fits the data with models.
+
+        Parameters
+        ----------
+        min_E : minimum energy cut off for fitting
+        max_E : maxmimum energy cut off for fitting
+        cutoff_cps : minimum number of counts to be considered to be inclued in fit.
+        do_dynamic_elements : bool, will dynamically add more elements to fit depending on counts.
+
+        do_error_calculation: bool, whether to do errorr calculation or not.
+        max_red_chi : float,  maximum allowed red_chi square value for error calculations.
+        sigma : float, sigma for error calculation
+        element_line_dict : a dictionary with keys as elements and values line energies in keV. Used to dynamically add elements to fit.
+        refer to find_fit_elements documentation for more information.
+        Returns
+        -------
+        df, pandas dataframe with results
+        """
+        self.max_red_chi = max_red_chi
+        self.sigma = sigma
+        suffix = ["", "_2"]  # TODO: Make this more general
+        file_names = self.prefit(output_dir)
+        #%% Fit
+        # Iterate through th files
+        par_vals = self.do_fit(
+            file_names=file_names,
+            out_dir=f"{self.output_dir}/fit",
+            min_E=min_E,
+            max_E=max_E,
+            cutoff_cps=cutoff_cps,
+            do_dynamic_elements=do_dynamic_elements,
+            do_error_calculation=do_error_calculation,
+            element_line_dict=element_line_dict,
+            suffix=suffix,
+        )
+        #%% Make a data frame
+
+        df = self.save_fit(out_dir=f"{self.out_dir}/fit")
+
+        return df
+
+
+class chisoth_2T_multi(chisoth):
+
+    """a 2T model for multi instruments."""
+
+    def __init__(
+        self,
+        PHA_files_list,
+        arf_files_list,
+        output_dir,
+        FIP_elements,
+        other_pars=["logT", "norm", "scaling"],
+        xcm_file="2T_multi.xcm",
+    ):
+        """TODO: to be defined.
+
+        Parameters
+        ----------
+        PHA_files : list of PHA files to perform fit on
+        arf_files : arf files corresponding to the PHA_files
+        flare_dir : directory to save results to
+        FIP_elements : list of elements, these elements will be alway included in fitting.
+        other_pars : non-element fit pars.
+        xcm_file : str, path to xcm file defing the model.
+
+        """
+        super().__init__(
+            PHA_files_list,
+            arf_files_list,
+            output_dir,
+            FIP_elements,
+            other_pars,
+            xcm_file,
+        )

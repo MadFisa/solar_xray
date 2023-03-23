@@ -322,6 +322,7 @@ class xsm(instrument):
             # arf_files.append(arffile)
 
         PHA_Files = glob.glob(f"{out_dir}/*.pha") # Had to do this way because command can faile some times due to no GTI
+        PHA_Files.sort()
         arf_files = [ pha_i.replace(".pha",".arf") for pha_i in PHA_Files]
         self.set_pha_files(PHA_Files,arf_files)
         return PHA_Files

@@ -133,6 +133,7 @@ class chisoth(model):
         self.other_pars = other_pars
 
         # Load model
+        xp.Fit.statMethod = "chi"
         xp.AllModels.lmod("chspec", dirPath=f"{os.path.expanduser('~')}/chspec/")
         xp.AllData.clear()
         xp.AllModels.clear()
@@ -193,6 +194,92 @@ class chisoth(model):
             elem_index_dict[elem] = elem_idx
             elem_par.frozen = False
         return elem_index_dict
+
+    def create_rows(self, fit_pars, suffix):
+        """
+        Creates dictionary to which will be used create rows of dataframe later.
+
+        Parameters
+        ----------
+        fit_pars :list, parameters that was used in fitting,
+        suffix :list, suffix of models
+
+        Returns
+        -------
+        TODO
+
+        """
+        temp_col = {}
+        for fit_pars_i in fit_pars:
+            for suffix_i in suffix:
+                m_par_i = eval(f"self.m.chisoth{suffix_i}.{fit_pars_i}")
+                par_col_prefix = fit_pars_i + suffix_i
+                temp_col[f"{par_col_prefix}_values"] = m_par_i.values[0]
+                temp_col[f"{par_col_prefix}_UB"] = m_par_i.error[0]
+                temp_col[f"{par_col_prefix}_LB"] = m_par_i.error[1]
+                temp_col[f"{par_col_prefix}_err_code"] = m_par_i.error[2]
+        temp_col["Chi"] = xp.Fit.testStatistic
+        temp_col["red_Chi"] = xp.Fit.testStatistic / xp.Fit.dof
+        print(f"Fit results are: {temp_col}")
+        return temp_col
+
+    def notice_fit_energies(self, min_E, max_E, cutoff_cps):
+        """
+        Adjust the energy range needs to be used. Initially the range between
+        min_E and max_E is used. Then the energy bins with less than cutoff cps
+        is ignored within this range.
+
+        Parameters
+        ----------
+        min_E : float, minimum energy to notice
+        max_E : float, maximum energy to notice
+        cutoff_cps : float, cutoff cps beyond which spectreum won't be counted
+
+        Returns
+        -------
+        TODO
+
+        """
+        for i in range(xp.AllData.nSpectra):
+            # temp_max_E = max_E
+            s = xp.AllData(i + 1)
+            s.ignore(f"**-{min_E}")
+            s.ignore(f"{max_E}-**")
+            counts = np.array(s.values)
+            energies = np.array(s.energies)
+            # Implementing dynamic maximum cut off
+            idxs = np.where(counts < cutoff_cps)[0]
+            if idxs.size > 0:
+                cutoff_idx = idxs[0]
+                cutoff_energy = energies[cutoff_idx][1]
+                if cutoff_energy < max_E:
+                    s.ignore(f"{cutoff_energy}-**")
+
+    def find_dynamic_elements(self, element_line_dict):
+        """TODO: Docstring for find_dynamic_elements.
+
+        Parameters
+        ----------
+        element_line_dict : a dictionary with keys as elements and values line energies in keV. Used to dynamically add elements to fit.
+        refer to find_fit_elements documentation for more information.
+
+        Returns
+        -------
+        TODO
+
+        """
+        fit_elements = self.FIP_elements
+        for i in range(xp.AllData.nSpectra):
+            s = xp.AllData(i + 1)
+            counts = np.array(s.values)
+            energies = np.array(s.energies)
+            dyn_elements = self.find_fit_elements(
+                counts, energies[:, 0], element_line_dict=element_line_dict
+            )
+            for dyn_element_i in dyn_elements:
+                if dyn_element_i not in fit_elements:
+                    fit_elements.append(dyn_element_i)
+        return fit_elements
 
 
 class chisoth_2T(chisoth):
@@ -322,6 +409,7 @@ class chisoth_2T(chisoth):
                 "simult" + os.path.basename(PHA_file).removesuffix(".pha")[-30:]
                 for PHA_file in PHA_files_array[:, 0]
             ]
+        suffix = ["", "_2"]  # TODO: Make this more general
         #%% Fit
         # Iterate through th files
         for i, f_name in enumerate(file_names):
@@ -330,35 +418,15 @@ class chisoth_2T(chisoth):
             logFile = xp.Xset.openLog(f"{out_dir}/{f_name}.log")
             xp.Xset.restore(self.xcm_file)
             self.m = xp.AllModels(1, "flare")
-            m = self.m
             self.load_spectra(i)
-            xp.Fit.statMethod = "chi"
+            self.notice_fit_energies(min_E, max_E, cutoff_cps)
 
             # Some dynamic adjustments for fitting
-            for i in range(xp.AllData.nSpectra):
-                # temp_max_E = max_E
-                s = xp.AllData(i + 1)
-                s.ignore(f"**-{min_E}")
-                s.ignore(f"{max_E}-**")
-                counts = np.array(s.values)
-                energies = np.array(s.energies)
-                # Implementing dynamic maximum cut off
-                idxs = np.where(counts < cutoff_cps)[0]
-                if idxs.size > 0:
-                    cutoff_idx = idxs[0]
-                    cutoff_energy = energies[cutoff_idx][1]
-                    if cutoff_energy < max_E:
-                        s.ignore(f"{cutoff_energy}-**")
-                # Implementing dynamic addition of elements
-                if do_dynamic_elements:
-                    dyn_elements = self.find_fit_elements(
-                        counts, energies[:, 0], element_line_dict=element_line_dict
-                    )
-                    fit_elements = (
-                        self.FIP_elements + dyn_elements
-                    )  # TODO: Make this work for simultaneous fit by putting inside loop
-                else:
-                    fit_elements = self.FIP_elements
+            # Implementing dynamic addition of elements
+            if do_dynamic_elements:
+                fit_elements = self.find_dynamic_elements(element_line_dict)
+            else:
+                fit_elements = self.FIP_elements
             self.fit_elements_list.append(fit_elements)
             print(f"Elements for fitting are {fit_elements}")
             # Start fitting with just temperatures left free
@@ -388,19 +456,7 @@ class chisoth_2T(chisoth):
             fit_pars = self.other_pars + fit_elements
 
             # Store the parameter values for later to turn into dataframe
-            temp_col = {}
-            suffix = ["", "_2"]  # TODO: Make this more general
-            for fit_pars_i in fit_pars:
-                for suffix_i in suffix:
-                    m_par_i = eval(f"m.chisoth{suffix_i}.{fit_pars_i}")
-                    par_col_prefix = fit_pars_i + suffix_i
-                    temp_col[f"{par_col_prefix}_values"] = m_par_i.values[0]
-                    temp_col[f"{par_col_prefix}_UB"] = m_par_i.error[0]
-                    temp_col[f"{par_col_prefix}_LB"] = m_par_i.error[1]
-                    temp_col[f"{par_col_prefix}_err_code"] = m_par_i.error[2]
-            temp_col["Chi"] = xp.Fit.testStatistic
-            temp_col["red_Chi"] = xp.Fit.testStatistic / xp.Fit.dof
-            print(f"Fit results are: {temp_col}")
+            temp_col = self.create_rows(fit_pars, suffix)
             self.par_vals.append(temp_col)
             xp.Xset.save(f"{out_dir}/{f_name}.xcm")  # Save model to xcm file
             xp.Xset.closeLog()

@@ -8,6 +8,7 @@ Description: Module containing models for fitting data in XSPEC for solar flares
 """
 import json
 import os
+import shutil
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -321,9 +322,6 @@ class chisoth(model):
             self.output_dir = output_dir
 
         xp.AllData.clear()
-        out_dir = f"{self.output_dir}/fit"
-        if not os.path.isdir(out_dir):
-            os.makedirs(out_dir)
         self.par_vals = []
         PHA_files_array = np.array(self.PHA_files_list)
 
@@ -351,6 +349,7 @@ class chisoth(model):
         do_error_calculation,
         element_line_dict,
         suffix,
+        overwrite,
     ):
         """
         A function that ill iterate through output file_names and do fitting.
@@ -367,68 +366,80 @@ class chisoth(model):
         sigma : float, sigma for error calculation
         element_line_dict : a dictionary with keys as elements and values line energies in keV. Used to dynamically add elements to fit.
         refer to find_fit_elements documentation for more information.
+        overwrite : whether or not to overwrite existing fits. This removes entire fit folder.
 
         Returns
         -------
-         dictionary of parvals.
+         dictionary of par_vals.
 
         """
+        if overwrite:
+            shutil.rmtree(out_dir, ignore_errors=True)
+
+        if not os.path.isdir(out_dir):
+            os.makedirs(out_dir)
         self.par_vals = []
         for i, f_name in enumerate(file_names):
-            xp.AllData.clear()
-            xp.AllModels.clear()
-            logFile = xp.Xset.openLog(f"{out_dir}/{f_name}.log")
-            xp.Xset.restore(self.xcm_file)
-            self.m = xp.AllModels(1, "flare")
-            self.load_spectra(i)
-            self.notice_fit_energies(min_E, max_E, cutoff_cps)
-
-            # Some dynamic adjustments for fitting
-            # Implementing dynamic addition of elements
-            if do_dynamic_elements:
-                fit_elements = self.find_dynamic_elements(element_line_dict)
+            if os.path.isfile(f"{out_dir}/{f_name}.json"):
+                with open(f"{out_dir}/{f_name}.json", "r") as fp:
+                    temp_row = json.load(fp)
+                self.par_vals.append(temp_row)
+                print("-------f{out_dir}/{f_name}.json already exists, skipping------")
             else:
-                fit_elements = self.FIP_elements
-            self.fit_elements_list.append(fit_elements)
-            print(f"Elements for fitting are {fit_elements}")
-            # Start fitting with just temperatures left free
-            other_pars_unfreeze_dict = {
-                idx_i: ",0.01,,,,," for idx_i in self.other_pars_idx
-            }
-            self.m.setPars(other_pars_unfreeze_dict)
-            xp.Fit.renorm()
-            xp.Fit.perform()
-            xp.Fit.renorm()
-            xp.Fit.perform()
-            xp.Fit.renorm()
-            xp.Fit.perform()
+                xp.AllData.clear()
+                xp.AllModels.clear()
+                logFile = xp.Xset.openLog(f"{out_dir}/{f_name}.log")
+                xp.Xset.restore(self.xcm_file)
+                self.m = xp.AllModels(1, "flare")
+                self.load_spectra(i)
+                self.notice_fit_energies(min_E, max_E, cutoff_cps)
 
-            # Unfreeze elemets
-            elments_par_dict = self.setup_pars(fit_elements)
-            xp.Fit.renorm()
-            xp.Fit.perform()
-            xp.Fit.renorm()
-            xp.Fit.perform()
-            n = 0
-            red_chi = xp.Fit.testStatistic / xp.Fit.dof
-            while red_chi > 2 and n < 5:
-                n += 1
+                # Some dynamic adjustments for fitting
+                # Implementing dynamic addition of elements
+                if do_dynamic_elements:
+                    fit_elements = self.find_dynamic_elements(element_line_dict)
+                else:
+                    fit_elements = self.FIP_elements
+                self.fit_elements_list.append(fit_elements)
+                print(f"Elements for fitting are {fit_elements}")
+                # Start fitting with just temperatures left free
+                other_pars_unfreeze_dict = {
+                    idx_i: ",0.01,,,,," for idx_i in self.other_pars_idx
+                }
+                self.m.setPars(other_pars_unfreeze_dict)
                 xp.Fit.renorm()
                 xp.Fit.perform()
-                red_chi = xp.Fit.testStatistic / xp.Fit.dof
-            # Finding errors
-            self.create_err_string(fit_elements, self.max_red_chi, self.sigma)
-            xp.Fit.error(self.err_string)
-            fit_pars = self.other_pars + fit_elements
+                xp.Fit.renorm()
+                xp.Fit.perform()
+                xp.Fit.renorm()
+                xp.Fit.perform()
 
-            # Store the parameter values for later to turn into dataframe
-            temp_row = self.create_rows(fit_pars, suffix)
-            self.par_vals.append(temp_row)
-            with open(f"{out_dir}/{f_name}.json", "w") as fp:
-                json.dump(temp_row, fp)
-            xp.Xset.save(f"{out_dir}/{f_name}.xcm")  # Save model to xcm file
-            xp.Xset.closeLog()
-            self.plot_fit(f"{out_dir}/{f_name}.png")
+                # Unfreeze elemets
+                elments_par_dict = self.setup_pars(fit_elements)
+                xp.Fit.renorm()
+                xp.Fit.perform()
+                xp.Fit.renorm()
+                xp.Fit.perform()
+                n = 0
+                red_chi = xp.Fit.testStatistic / xp.Fit.dof
+                while red_chi > 2 and n < 5:
+                    n += 1
+                    xp.Fit.renorm()
+                    xp.Fit.perform()
+                    red_chi = xp.Fit.testStatistic / xp.Fit.dof
+                # Finding errors
+                self.create_err_string(fit_elements, self.max_red_chi, self.sigma)
+                xp.Fit.error(self.err_string)
+                fit_pars = self.other_pars + fit_elements
+
+                # Store the parameter values for later to turn into dataframe
+                temp_row = self.create_rows(fit_pars, suffix)
+                self.par_vals.append(temp_row)
+                with open(f"{out_dir}/{f_name}.json", "w") as fp:
+                    json.dump(temp_row, fp)
+                xp.Xset.save(f"{out_dir}/{f_name}.xcm")  # Save model to xcm file
+                xp.Xset.closeLog()
+                self.plot_fit(f"{out_dir}/{f_name}.png")
         return self.par_vals
 
     def save_fit(self, out_dir):
@@ -516,6 +527,7 @@ class chisoth_2T(chisoth):
         max_red_chi=100.0,
         sigma=1.0,
         element_line_dict={"S": 2.45, "Ar": 3.2, "Ca": 3.9, "Fe": 6.5},
+        overwrite=False,
     ):
         """
         fits the data with models.
@@ -552,6 +564,7 @@ class chisoth_2T(chisoth):
             do_error_calculation=do_error_calculation,
             element_line_dict=element_line_dict,
             suffix=suffix,
+            overwrite=overwrite,
         )
         #%% Make a data frame
 

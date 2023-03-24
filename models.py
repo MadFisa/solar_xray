@@ -614,3 +614,50 @@ class chisoth_2T_multi(chisoth_2T):
                 idx_temp = eval(f"self.m.{component_i}.{other_par_i}.index")
                 self.other_pars_idx.append(idx_temp)
         self.other_pars_idx.append(xp.AllModels(2, "flare").constant.factor.index)
+    
+    def load_spectra(self, file_idx):
+        """
+        Loads spectra to XSPEC based on whether there is a single file or multiple
+        files.
+
+        Parameters
+        ----------
+        file_idx : index of the file in self.PHA_files_list to load.
+
+        """
+        PHA_files = self.PHA_files_list[file_idx]
+        arf_files = self.arf_files_list[file_idx]
+
+        data_string = "".join([f" {i}:{i} {PHA_file_i}" for i,PHA_file_i in enumerate(PHA_files)])
+        xp.AllData(data_string)
+
+        for i, spectra_i in enumerate(PHA_files):
+            xp.AllData += spectra_i
+            if arf_files[i] != "USE_DEFAULT":
+                xp.AllData(i + 1).response.arf = arf_files[i]
+
+
+    def setup_pars(self, elements_list):
+        """
+        Function that will take a list of element and unfreezes them for fitting.
+
+        Parameters
+        ----------
+        elements_list : list, of elements to unfreeze
+
+        Returns
+        -------
+
+        elem_index_dict : dictionary that gives parameter indexes corresponding to elements.
+
+        """
+
+        elem_index_dict = {}
+        for elem in elements_list:
+            elem_par = eval(f"self.m.chisoth.{elem}")
+            elem_idx = elem_par.index
+            elem_index_dict[elem] = elem_idx
+            elem_par.frozen = False
+        m2 = xp.AllModels(2, "flare")
+        m2.constant.factor = 4
+        return elem_index_dict

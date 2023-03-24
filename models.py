@@ -6,6 +6,7 @@ Email: asifmp97@gmail.com
 Github: github/MadFisa
 Description: Module containing models for fitting data in XSPEC for solar flares
 """
+import json
 import os
 
 import matplotlib.pyplot as plt
@@ -423,6 +424,8 @@ class chisoth(model):
             # Store the parameter values for later to turn into dataframe
             temp_row = self.create_rows(fit_pars, suffix)
             self.par_vals.append(temp_row)
+            with open(f"{out_dir}/{f_name}.json", "w") as fp:
+                json.dump(temp_row, fp)
             xp.Xset.save(f"{out_dir}/{f_name}.xcm")  # Save model to xcm file
             xp.Xset.closeLog()
             self.plot_fit(f"{out_dir}/{f_name}.png")

@@ -295,7 +295,7 @@ class chisoth(model):
         for element_i in elements_list:
             idx_elem = eval(f"self.m.chisoth.{element_i}.index")
             self.elem_par_idx.append(idx_elem)
-        self.all_par_idx = self.other_par_idx + self.elem_par_idx
+        self.all_par_idx = self.other_pars_idx + self.elem_par_idx
         self.err_string = f"maximum {max_red_chi} {sigma} flare:" + "".join(
             [str(i) + " " for i in self.all_par_idx]
         )  # error string to be used later with xspec err command
@@ -391,6 +391,10 @@ class chisoth(model):
             self.fit_elements_list.append(fit_elements)
             print(f"Elements for fitting are {fit_elements}")
             # Start fitting with just temperatures left free
+            other_pars_unfreeze_dict = {
+                idx_i: ",0.01,,,,," for idx_i in self.other_pars_idx
+            }
+            self.m.setPars(other_pars_unfreeze_dict)
             xp.Fit.renorm()
             xp.Fit.perform()
             xp.Fit.renorm()
@@ -490,13 +494,13 @@ class chisoth_2T(chisoth):
         )
 
         # Figure out parameter index for other_pars which doesnot change during fitting
-        self.other_par_idx = []
+        self.other_pars_idx = []
         xp.Xset.restore(self.xcm_file)
         self.m = xp.AllModels(1, "flare")
         for component_i in self.m.componentNames:
             for other_par_i in self.other_pars:
                 idx_temp = eval(f"self.m.{component_i}.{other_par_i}.index")
-                self.other_par_idx.append(idx_temp)
+                self.other_pars_idx.append(idx_temp)
 
     def fit(
         self,
@@ -548,12 +552,12 @@ class chisoth_2T(chisoth):
         )
         #%% Make a data frame
 
-        df = self.save_fit(out_dir=f"{self.out_dir}/fit")
+        df = self.save_fit(out_dir=f"{self.output_dir}/fit")
 
         return df
 
 
-class chisoth_2T_multi(chisoth):
+class chisoth_2T_multi(chisoth_2T):
 
     """a 2T model for multi instruments."""
 
@@ -563,7 +567,7 @@ class chisoth_2T_multi(chisoth):
         arf_files_list,
         output_dir,
         FIP_elements,
-        other_pars=["logT", "norm", "scaling"],
+        other_pars=["logT", "norm", "factor"],
         xcm_file="2T_multi.xcm",
     ):
         """TODO: to be defined.
@@ -578,7 +582,7 @@ class chisoth_2T_multi(chisoth):
         xcm_file : str, path to xcm file defing the model.
 
         """
-        super().__init__(
+        chisoth.__init__(
             PHA_files_list,
             arf_files_list,
             output_dir,
@@ -586,3 +590,11 @@ class chisoth_2T_multi(chisoth):
             other_pars,
             xcm_file,
         )
+        self.other_pars_idx = []
+        xp.Xset.restore(self.xcm_file)
+        self.m = xp.AllModels(1, "flare")
+        for component_i in self.m.componentNames:
+            for other_par_i in self.other_pars[:-1]:
+                idx_temp = eval(f"self.m.{component_i}.{other_par_i}.index")
+                self.other_pars_idx.append(idx_temp)
+        self.other_pars_idx.append(xp.AllModels(2, "flare").constant.factor.index)

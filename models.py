@@ -129,7 +129,7 @@ class chisoth(model):
         other_pars=["logT", "norm"],
         xcm_file=None,
     ):
-        super(chisoth, self).__init__(PHA_files_list, arf_files_list, output_dir)
+        super().__init__(PHA_files_list, arf_files_list, output_dir)
         self.xcm_file = xcm_file
         self.FIP_elements = FIP_elements
         self.other_pars = other_pars
@@ -598,7 +598,8 @@ class chisoth_2T_multi(chisoth_2T):
         xcm_file : str, path to xcm file defing the model.
 
         """
-        chisoth.__init__(
+        chisoth_2T.__init__(
+            self,
             PHA_files_list,
             arf_files_list,
             output_dir,
@@ -614,7 +615,7 @@ class chisoth_2T_multi(chisoth_2T):
                 idx_temp = eval(f"self.m.{component_i}.{other_par_i}.index")
                 self.other_pars_idx.append(idx_temp)
         self.other_pars_idx.append(xp.AllModels(2, "flare").constant.factor.index)
-    
+
     def load_spectra(self, file_idx):
         """
         Loads spectra to XSPEC based on whether there is a single file or multiple
@@ -628,14 +629,15 @@ class chisoth_2T_multi(chisoth_2T):
         PHA_files = self.PHA_files_list[file_idx]
         arf_files = self.arf_files_list[file_idx]
 
-        data_string = "".join([f" {i}:{i} {PHA_file_i}" for i,PHA_file_i in enumerate(PHA_files)])
+        data_string = "".join(
+            [f" {i}:{i} {PHA_file_i}" for i, PHA_file_i in enumerate(PHA_files)]
+        )
         xp.AllData(data_string)
 
         for i, spectra_i in enumerate(PHA_files):
             xp.AllData += spectra_i
             if arf_files[i] != "USE_DEFAULT":
                 xp.AllData(i + 1).response.arf = arf_files[i]
-
 
     def setup_pars(self, elements_list):
         """

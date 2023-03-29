@@ -77,7 +77,7 @@ class model:
         out_file : string, path name to save the plot to.
 
         """
-        xp.Plot("data", "delchi")
+        xp.Plot("data")
         x = xp.Plot.x()
         x_err = xp.Plot.xErr()
         y = xp.Plot.y()
@@ -453,7 +453,7 @@ class chisoth(model):
         """
         times = [
             os.path.basename(PHA_file_i).removesuffix(".pha")[-29:]
-            for PHA_file_i in self.PHA_files_list
+            for PHA_file_i in self.file_names
         ]
         self.times = pd.to_datetime(times)
         df = pd.DataFrame(self.par_vals, index=self.times)
@@ -551,7 +551,8 @@ class chisoth_2T(chisoth):
         self.max_red_chi = max_red_chi
         self.sigma = sigma
         suffix = ["", "_2"]  # TODO: Make this more general
-        file_names = self.prefit(output_dir)
+        self.file_names = self.prefit(output_dir)
+        file_names = self.file_names
         #%% Fit
         # Iterate through th files
         par_vals = self.do_fit(
@@ -598,7 +599,7 @@ class chisoth_2T_multi(chisoth_2T):
         xcm_file : str, path to xcm file defing the model.
 
         """
-        chisoth_2T.__init__(
+        chisoth.__init__(
             self,
             PHA_files_list,
             arf_files_list,
@@ -610,11 +611,11 @@ class chisoth_2T_multi(chisoth_2T):
         self.other_pars_idx = []
         xp.Xset.restore(self.xcm_file)
         self.m = xp.AllModels(1, "flare")
-        for component_i in self.m.componentNames:
+        for component_i in self.m.componentNames[:2]:
             for other_par_i in self.other_pars[:-1]:
                 idx_temp = eval(f"self.m.{component_i}.{other_par_i}.index")
                 self.other_pars_idx.append(idx_temp)
-        self.other_pars_idx.append(xp.AllModels(2, "flare").constant.factor.index)
+        self.other_pars_idx.append(xp.AllModels(1, "flare").constant.factor.index)
 
     def load_spectra(self, file_idx):
         """
@@ -626,16 +627,16 @@ class chisoth_2T_multi(chisoth_2T):
         file_idx : index of the file in self.PHA_files_list to load.
 
         """
+        xp.AllData.clear()
         PHA_files = self.PHA_files_list[file_idx]
         arf_files = self.arf_files_list[file_idx]
 
         data_string = "".join(
-            [f" {i}:{i} {PHA_file_i}" for i, PHA_file_i in enumerate(PHA_files)]
+            [f" {i+1}:{i+1} {PHA_file_i}" for i, PHA_file_i in enumerate(PHA_files)]
         )
         xp.AllData(data_string)
 
         for i, spectra_i in enumerate(PHA_files):
-            xp.AllData += spectra_i
             if arf_files[i] != "USE_DEFAULT":
                 xp.AllData(i + 1).response.arf = arf_files[i]
 
@@ -660,6 +661,32 @@ class chisoth_2T_multi(chisoth_2T):
             elem_idx = elem_par.index
             elem_index_dict[elem] = elem_idx
             elem_par.frozen = False
+        # Lets freeze the second value
+        # TODO: Make this more general
         m2 = xp.AllModels(2, "flare")
-        m2.constant.factor = 4
+        m2.constant.factor.values = "1,-1,,,,,"
         return elem_index_dict
+
+    def create_rows(self, fit_pars, suffix):
+        """
+        Creates dictionary to which will be used create rows of dataframe later.
+
+        Parameters
+        ----------
+        fit_pars :list, parameters that was used in fitting,
+        suffix :list, suffix of models
+
+        Returns
+        -------
+         Dictionary with values an errors of parameter of the for f"{par_name}_values/UB/LB/err_code" for parameter values,Upper bound, Lower bound, and associated error code.
+
+        """
+        fit_pars_temp = [x for x in fit_pars if x != "factor"]
+        temp_col = super().create_rows(fit_pars_temp, suffix)
+        m = xp.AllModels(1, "flare")
+        m_par_i = m.constant.factor
+        temp_col["factor_values"] = m_par_i.values[0]
+        temp_col["factor_UB"] = m_par_i.error[0]
+        temp_col["factor_LB"] = m_par_i.error[1]
+        temp_col["factor_err_code"] = m_par_i.error[2]
+        return temp_col

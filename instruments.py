@@ -20,7 +20,7 @@ def do_grppha(
     threshold_counts,
 ):
     """
-    The function will do gpb pha on files based on cutoff cps.
+    The function will do grb pha on files based on cutoff cps.
 
     Parameters
     ----------
@@ -115,12 +115,13 @@ class instrument:
         """
         if PHA_file_list is not None:
             self.PHA_file_list = PHA_file_list
-        shutil.rmtree(f"{self.output_dir}/grpd_pha/", ignore_errors=True)
+        # shutil.rmtree(f"{self.output_dir}/grpd_pha/", ignore_errors=True)
         out_PHA_file_list = [
             pha_file_i.replace("/orig_pha/", "/grpd_pha/")
             for pha_file_i in self.PHA_file_list
         ]
-        os.makedirs(f"{self.output_dir}/grpd_pha")
+        if not os.path.isdir(f"{self.output_dir}/grpd_pha/"):
+            os.makedirs(f"{self.output_dir}/grpd_pha")
         do_grppha( self.PHA_file_list,out_PHA_file_list, min_count)
         self.PHA_file_list = out_PHA_file_list
         return out_PHA_file_list

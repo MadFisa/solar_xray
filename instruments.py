@@ -5,12 +5,14 @@ Email: asifmp97@gmail.com
 Github: github/MadFisa
 Description: Module containing fitiing codes for instruments
 """
-import os
 import glob
+import os
 import shutil
 from datetime import datetime
+
+import numpy as np
 import pandas as pd
-import numpy as np 
+
 from data_utils import create_daxss_pha, read_daxss_data
 
 
@@ -122,7 +124,7 @@ class instrument:
         ]
         if not os.path.isdir(f"{self.output_dir}/grpd_pha/"):
             os.makedirs(f"{self.output_dir}/grpd_pha")
-        do_grppha( self.PHA_file_list,out_PHA_file_list, min_count)
+        do_grppha(self.PHA_file_list, out_PHA_file_list, min_count)
         self.PHA_file_list = out_PHA_file_list
         return out_PHA_file_list
 
@@ -143,7 +145,9 @@ class instrument:
          out_out from fit
 
         """
-        self.model = model_class(self.PHA_file_list,self.arf_file_list,self.output_dir,**model_args)
+        self.model = model_class(
+            self.PHA_file_list, self.arf_file_list, self.output_dir, **model_args
+        )
         self.fit_output = self.model.fit(**fit_args)
         return self.fit_output
 
@@ -222,8 +226,10 @@ class daxss(instrument):
         )
         return self.PHA_file_list
 
+
 class xsm(instrument):
     """Class to handle Chaandrayan 2 XSM"""
+
     def __init__(
         self,
         output_dir=None,
@@ -270,7 +276,7 @@ class xsm(instrument):
         """
         self.xsm_folder = xsm_folder
 
-    def do_xsmgenspec(self,time_beg,time_end):
+    def do_xsmgenspec(self, time_beg, time_end):
         """calls xsmgenspec for give utc time_beg and time end
 
         Parameters
@@ -280,12 +286,12 @@ class xsm(instrument):
 
         Returns
         -------
-        TODO
+        output file name
 
         """
         met_i_beg = self.utc2met(time_beg)
         met_i_end = self.utc2met(time_end)
-        time_i =time_beg +  (time_end-time_beg)/2
+        time_i = time_beg + (time_end - time_beg) / 2
         year = time_i.year
         month = time_i.month
         day = time_i.day
@@ -296,18 +302,14 @@ class xsm(instrument):
         hkfile = f"{root_dir}/raw/{file_basename}1.hk"
         safile = f"{root_dir}/raw/{file_basename}1.sa"
         gtifile = f"{root_dir}/calibrated/{file_basename}2.gti"
-        outfile = (
-            f"{self.output_dir}/orig_pha/XSM_{np.datetime_as_string(time_i.to_numpy())}.pha"
-        )
-        arffile = (
-            f"{self.output_dir}/orig_pha/XSM_{np.datetime_as_string(time_i.to_numpy())}.arf"
-        )
-
+        outfile = f"{self.output_dir}/orig_pha/XSM_{np.datetime_as_string(time_i.to_numpy())}.pha"
+        arffile = f"{self.output_dir}/orig_pha/XSM_{np.datetime_as_string(time_i.to_numpy())}.arf"
 
         command = f"xsmgenspec l1file={l1file} specfile={outfile} spectype='time-integrated' hkfile={hkfile} safile={safile} gtifile={gtifile} arffile={arffile} tstart={met_i_beg} tstop={met_i_end} "
         print("--------running xsmgenspec command---------")
         print(command)
         os.system(command)
+        return outfile
         # PHA_Files.append(outfile)
         # arf_files.append(arffile)
 
@@ -340,12 +342,14 @@ class xsm(instrument):
 
         for i, time_i in enumerate(times_list[:-1]):
             time_beg_i = times_list[i]
-            time_end_i = times_list[i+1]
+            time_end_i = times_list[i + 1]
             print(f"time_beg is {time_beg} and end is {time_end}")
-            self.do_xsmgenspec(time_beg_i,time_end_i)
+            self.do_xsmgenspec(time_beg_i, time_end_i)
 
-        PHA_Files = glob.glob(f"{out_dir}/XSM_*.pha") # Had to do this way because command can faile some times due to no GTI
+        PHA_Files = glob.glob(
+            f"{out_dir}/XSM_*.pha"
+        )  # Had to do this way because command can faile some times due to no GTI
         PHA_Files.sort()
-        arf_files = [ pha_i.replace(".pha",".arf") for pha_i in PHA_Files]
-        self.set_pha_files(PHA_Files,arf_files)
+        arf_files = [pha_i.replace(".pha", ".arf") for pha_i in PHA_Files]
+        self.set_pha_files(PHA_Files, arf_files)
         return PHA_Files

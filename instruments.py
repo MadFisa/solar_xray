@@ -270,6 +270,47 @@ class xsm(instrument):
         """
         self.xsm_folder = xsm_folder
 
+    def do_xsmgenspec(self,time_beg,time_end):
+        """calls xsmgenspec for give utc time_beg and time end
+
+        Parameters
+        ----------
+        time_beg :datetime, begin time (UTC) for bin,
+        time_end :datetime, end time (UTC) for bin
+
+        Returns
+        -------
+        TODO
+
+        """
+        met_i_beg = self.utc2met(time_beg)
+        met_i_end = self.utc2met(time_end)
+        time_i =time_beg +  (time_end-time_beg)/2
+        year = time_i.year
+        month = time_i.month
+        day = time_i.day
+
+        root_dir = f"{self.xsm_folder}/{year}/{str(month).zfill(2)}/{str(day).zfill(2)}"
+        file_basename = f'ch2_xsm_{time_i.strftime("%Y%m%d")}_v1_level'
+        l1file = f"{root_dir}/raw/{file_basename}1.fits"
+        hkfile = f"{root_dir}/raw/{file_basename}1.hk"
+        safile = f"{root_dir}/raw/{file_basename}1.sa"
+        gtifile = f"{root_dir}/calibrated/{file_basename}2.gti"
+        outfile = (
+            f"{self.output_dir}/orig_pha/XSM_{np.datetime_as_string(time_i.to_numpy())}.pha"
+        )
+        arffile = (
+            f"{self.output_dir}/orig_pha/XSM_{np.datetime_as_string(time_i.to_numpy())}.arf"
+        )
+
+
+        command = f"xsmgenspec l1file={l1file} specfile={outfile} spectype='time-integrated' hkfile={hkfile} safile={safile} gtifile={gtifile} arffile={arffile} tstart={met_i_beg} tstop={met_i_end} "
+        print("--------running xsmgenspec command---------")
+        print(command)
+        os.system(command)
+        # PHA_Files.append(outfile)
+        # arf_files.append(arffile)
+
     def create_pha_files(self, time_beg, time_end, bin_size):
         """
         Creates XSM pha files for given duration with given bin sizes.
@@ -290,7 +331,7 @@ class xsm(instrument):
         super().create_pha_files(time_beg, time_end, bin_size)
         out_dir = self.output_dir + "/orig_pha"
         times_list = pd.date_range(time_beg, time_end, freq=bin_size)
-        times_met = self.utc2met(times_list)
+        # times_met = self.utc2met(times_list)
         if not os.path.isdir(out_dir):
             os.makedirs(out_dir)
 
@@ -298,31 +339,12 @@ class xsm(instrument):
         arf_files = []
 
         for i, time_i in enumerate(times_list[:-1]):
-            met_i_beg = times_met[i]
-            met_i_end = times_met[i + 1]
-            year = time_i.year
-            month = time_i.month
-            day = time_i.day
+            time_beg_i = times_list[i]
+            time_end_i = times_list[i+1]
+            print(f"time_beg is {time_beg} and end is {time_end}")
+            self.do_xsmgenspec(time_beg_i,time_end_i)
 
-            root_dir = f"{self.xsm_folder}/{year}/{str(month).zfill(2)}/{str(day).zfill(2)}"
-            file_basename = f'ch2_xsm_{time_i.strftime("%Y%m%d")}_v1_level'
-            l1file = f"{root_dir}/raw/{file_basename}1.fits"
-            hkfile = f"{root_dir}/raw/{file_basename}1.hk"
-            safile = f"{root_dir}/raw/{file_basename}1.sa"
-            gtifile = f"{root_dir}/calibrated/{file_basename}2.gti"
-            outfile = (
-                f"{self.output_dir}/orig_pha/XSM_{np.datetime_as_string(time_i.to_numpy())}.pha"
-            )
-            arffile = (
-                f"{self.output_dir}/orig_pha/XSM_{np.datetime_as_string(time_i.to_numpy())}.arf"
-            )
-
-            command = f"xsmgenspec l1file={l1file} specfile={outfile} spectype='time-integrated' hkfile={hkfile} safile={safile} gtifile={gtifile} arffile={arffile} tstart={met_i_beg} tstop={met_i_end} "
-            os.system(command)
-            # PHA_Files.append(outfile)
-            # arf_files.append(arffile)
-
-        PHA_Files = glob.glob(f"{out_dir}/*.pha") # Had to do this way because command can faile some times due to no GTI
+        PHA_Files = glob.glob(f"{out_dir}/XSM_*.pha") # Had to do this way because command can faile some times due to no GTI
         PHA_Files.sort()
         arf_files = [ pha_i.replace(".pha",".arf") for pha_i in PHA_Files]
         self.set_pha_files(PHA_Files,arf_files)

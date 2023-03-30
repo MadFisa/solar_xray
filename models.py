@@ -68,50 +68,57 @@ class model:
             if arf_files[i] != "USE_DEFAULT":
                 xp.AllData(i + 1).response.arf = arf_files[i]
 
-    def plot_fit(self, out_file):
+    def plot_fit(self, out_file, labels):
         """
         Plots the rusults of current fit to the file
 
         Parameters
         ----------
         out_file : string, path name to save the plot to.
+        labels : list of labels for each datagroup to be used in plot.
 
         """
-        xp.Plot("data")
-        x = xp.Plot.x()
-        x_err = xp.Plot.xErr()
-        y = xp.Plot.y()
-        y_err = xp.Plot.yErr()
-        model = xp.Plot.model()
-        xp.Plot("delchi")
-        chix = xp.Plot.x()
-        chix_err = xp.Plot.xErr()
-        chi = xp.Plot.y()
-        chi_err = xp.Plot.yErr()
-
         fig, ax = plt.subplots(nrows=2, ncols=1, sharex=True, figsize=(16, 9))
-        ax[0].plot(x, model, drawstyle="steps-mid")
-        ax[0].errorbar(
-            x, y, xerr=x_err, yerr=y_err, linestyle="None", fmt="k", alpha=0.6
-        )
-        ax[0].set_yscale("log")
-        ax[0].set_ylim(bottom=1)
-        ax[0].set_ylabel("counts/s/keV")
+        for i in range(xp.AllData.nGroups):
+            xp.Plot("data")
+            x = xp.Plot.x(i+1)
+            x_err = xp.Plot.xErr(i+1)
+            y = xp.Plot.y(i+1)
+            y_err = xp.Plot.yErr(i+1)
+            model = xp.Plot.model(i+1)
+            xp.Plot("delchi")
+            chix = xp.Plot.x(i+1)
+            chix_err = xp.Plot.xErr(i+1)
+            chi = xp.Plot.y(i+1)
+            chi_err = xp.Plot.yErr(i+1)
+
+            ax[0].plot(x, model, drawstyle="steps-mid")
+            ax[0].errorbar(
+                x, y, xerr=x_err, yerr=y_err, linestyle="None", fmt="k", alpha=0.6
+            )
+            ax[1].errorbar(
+                chix,
+                chi,
+                xerr=chix_err,
+                yerr=chi_err,
+                linestyle="None",
+                elinewidth=3,
+                # fmt="k",
+                alpha=0.7,
+            )
+
+        if labels is not None:
+            ax[0].legend(labels)
         ax[1].hlines(
             0,
             min(chix),
             max(chix),
-        )
-        ax[1].errorbar(
-            chix,
-            chi,
-            xerr=chix_err,
-            yerr=chi_err,
-            linestyle="None",
-            fmt="k",
-            alpha=0.6,
+            colors='k'
         )
         ax[1].set_ylabel("(data-model)/error")
+        ax[0].set_yscale("log")
+        ax[0].set_ylim(bottom=1)
+        ax[0].set_ylabel("counts/s/keV")
         fig.supxlabel("Energy (keV)")
         plt.savefig(out_file)
         plt.close()
@@ -350,6 +357,7 @@ class chisoth(model):
         element_line_dict,
         suffix,
         overwrite,
+        labels 
     ):
         """
         A function that ill iterate through output file_names and do fitting.
@@ -367,6 +375,7 @@ class chisoth(model):
         element_line_dict : a dictionary with keys as elements and values line energies in keV. Used to dynamically add elements to fit.
         refer to find_fit_elements documentation for more information.
         overwrite : whether or not to overwrite existing fits. This removes entire fit folder.
+        labels : list of labels for each datagroup to be used in plot.
 
         Returns
         -------
@@ -439,7 +448,7 @@ class chisoth(model):
                     json.dump(temp_row, fp)
                 xp.Xset.save(f"{out_dir}/{f_name}.xcm")  # Save model to xcm file
                 xp.Xset.closeLog()
-                self.plot_fit(f"{out_dir}/{f_name}.png")
+                self.plot_fit(f"{out_dir}/{f_name}.png",labels)
         return self.par_vals
 
     def save_fit(self, out_dir):
@@ -528,6 +537,7 @@ class chisoth_2T(chisoth):
         sigma=1.0,
         element_line_dict={"S": 2.45, "Ar": 3.2, "Ca": 3.9, "Fe": 6.5},
         overwrite=False,
+        labels=None
     ):
         """
         fits the data with models.
@@ -544,6 +554,7 @@ class chisoth_2T(chisoth):
         sigma : float, sigma for error calculation
         element_line_dict : a dictionary with keys as elements and values line energies in keV. Used to dynamically add elements to fit.
         refer to find_fit_elements documentation for more information.
+        labels : list of labels for each datagroup to be used in plot.
         Returns
         -------
         df, pandas dataframe with results
@@ -566,6 +577,7 @@ class chisoth_2T(chisoth):
             element_line_dict=element_line_dict,
             suffix=suffix,
             overwrite=overwrite,
+            labels=labels
         )
         #%% Make a data frame
 

@@ -232,10 +232,16 @@ def create_daxss_pha(
     # Creating and Storing the FITS File
     cps = cps.dropna(dim="time", how="all")
     time_ISO_array = cps.time
+    # Times for file name obtained by taking center of time labels
+    t_temp = time_ISO_array.data.copy()
+    dt = np.diff(t_temp)
+    dt = np.append(dt, dt[-1])
+    time_file_name = time_ISO_array + dt / 2
+
     file_names_list = []
     #%% Create the array
     c1 = channel_number_array
-    for time in time_ISO_array:
+    for time, time_file_i in zip(time_ISO_array, time_file_name):
         c2 = cps.sel(time=time)
         c3 = statistical_error_array.sel(time=time)
         c4 = systematic_error_array.sel(time=time)

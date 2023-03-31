@@ -702,3 +702,35 @@ class chisoth_2T_multi(chisoth_2T):
         temp_col["factor_LB"] = m_par_i.error[1]
         temp_col["factor_err_code"] = m_par_i.error[2]
         return temp_col
+
+    def notice_fit_energies(self, min_E, max_E, cutoff_cps):
+        """
+        Adjust the energy range needs to be used. Initially the range between
+        min_E and max_E is used. Then the energy bins with less than cutoff cps
+        is ignored within this range.
+
+        Parameters
+        ----------
+        min_E : list, minimum energy to notice for each instrument
+        max_E : list, maximum energy to notice for each instrument
+        cutoff_cps : list, cutoff cps beyond which spectreum won't be counted
+
+        Returns
+        -------
+        TODO
+
+        """
+        for i in range(xp.AllData.nSpectra):
+            # temp_max_E = max_E
+            s = xp.AllData(i + 1)
+            s.ignore(f"**-{min_E[i]}")
+            s.ignore(f"{max_E[i]}-**")
+            counts = np.array(s.values)
+            energies = np.array(s.energies)
+            # Implementing dynamic maximum cut off
+            idxs = np.where(counts < cutoff_cps[i])[0]
+            if idxs.size > 0:
+                cutoff_idx = idxs[0]
+                cutoff_energy = energies[cutoff_idx][1]
+                if cutoff_energy < max_E[i]:
+                    s.ignore(f"{cutoff_energy}-**")

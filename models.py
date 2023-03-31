@@ -81,16 +81,16 @@ class model:
         fig, ax = plt.subplots(nrows=2, ncols=1, sharex=True, figsize=(16, 9))
         for i in range(xp.AllData.nGroups):
             xp.Plot("data")
-            x = xp.Plot.x(i+1)
-            x_err = xp.Plot.xErr(i+1)
-            y = xp.Plot.y(i+1)
-            y_err = xp.Plot.yErr(i+1)
-            model = xp.Plot.model(i+1)
+            x = xp.Plot.x(i + 1)
+            x_err = xp.Plot.xErr(i + 1)
+            y = xp.Plot.y(i + 1)
+            y_err = xp.Plot.yErr(i + 1)
+            model = xp.Plot.model(i + 1)
             xp.Plot("delchi")
-            chix = xp.Plot.x(i+1)
-            chix_err = xp.Plot.xErr(i+1)
-            chi = xp.Plot.y(i+1)
-            chi_err = xp.Plot.yErr(i+1)
+            chix = xp.Plot.x(i + 1)
+            chix_err = xp.Plot.xErr(i + 1)
+            chi = xp.Plot.y(i + 1)
+            chi_err = xp.Plot.yErr(i + 1)
 
             ax[0].plot(x, model, drawstyle="steps-mid")
             ax[0].errorbar(
@@ -109,12 +109,7 @@ class model:
 
         if labels is not None:
             ax[0].legend(labels)
-        ax[1].hlines(
-            0,
-            min(chix),
-            max(chix),
-            colors='k'
-        )
+        ax[1].hlines(0, min(chix), max(chix), colors="k")
         ax[1].set_ylabel("(data-model)/error")
         ax[0].set_yscale("log")
         ax[0].set_ylim(bottom=1)
@@ -357,7 +352,7 @@ class chisoth(model):
         element_line_dict,
         suffix,
         overwrite,
-        labels 
+        labels,
     ):
         """
         A function that ill iterate through output file_names and do fitting.
@@ -448,7 +443,7 @@ class chisoth(model):
                     json.dump(temp_row, fp)
                 xp.Xset.save(f"{out_dir}/{f_name}.xcm")  # Save model to xcm file
                 xp.Xset.closeLog()
-                self.plot_fit(f"{out_dir}/{f_name}.png",labels)
+                self.plot_fit(f"{out_dir}/{f_name}.png", labels)
         return self.par_vals
 
     def save_fit(self, out_dir):
@@ -537,7 +532,7 @@ class chisoth_2T(chisoth):
         sigma=1.0,
         element_line_dict={"S": 2.45, "Ar": 3.2, "Ca": 3.9, "Fe": 6.5},
         overwrite=False,
-        labels=None
+        labels=None,
     ):
         """
         fits the data with models.
@@ -577,7 +572,7 @@ class chisoth_2T(chisoth):
             element_line_dict=element_line_dict,
             suffix=suffix,
             overwrite=overwrite,
-            labels=labels
+            labels=labels,
         )
         #%% Make a data frame
 
@@ -720,6 +715,7 @@ class chisoth_2T_multi(chisoth_2T):
         TODO
 
         """
+        #TODO: A better way to implement this in the parent class chisoth_2T
         for i in range(xp.AllData.nSpectra):
             # temp_max_E = max_E
             s = xp.AllData(i + 1)

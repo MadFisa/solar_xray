@@ -115,6 +115,8 @@ class model:
         ax[0].set_ylim(bottom=1)
         ax[0].set_ylabel("counts/s/keV")
         fig.supxlabel("Energy (keV)")
+        time = pd.to_datetime(os.path.basename(out_file).removesuffix(".png")[-29:])
+        fig.suptitle(f"flare at {time}")
         plt.savefig(out_file)
         plt.close()
 
@@ -388,7 +390,7 @@ class chisoth(model):
                 with open(f"{out_dir}/{f_name}.json", "r") as fp:
                     temp_row = json.load(fp)
                 self.par_vals.append(temp_row)
-                print("-------f{out_dir}/{f_name}.json already exists, skipping------")
+                print(f"-------{out_dir}/{f_name}.json already exists, skipping------")
             else:
                 xp.AllData.clear()
                 xp.AllModels.clear()

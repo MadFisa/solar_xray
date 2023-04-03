@@ -55,12 +55,14 @@ xsm_fit_args = {
     "max_E": max_E,
     "do_dynamic_elements": do_dynamic_elements,
     "cutoff_cps": xsm_cutoff_cps,
+    "labels" : ['xsm']
 }
 daxss_fit_args = {
     "min_E": min_E,
     "max_E": max_E,
     "do_dynamic_elements": do_dynamic_elements,
     "cutoff_cps": daxss_cutoff_cps,
+    "labels" : ['xsm']
 }
 model_args = {"FIP_elements": FIP_elements}
 #%% Instrument specifics
@@ -120,5 +122,7 @@ for flare_num in flares:
                 data_dir,
                 flare_num,
             )
+            plot_individual(instrument_i.name,data_dir,flare_num,out_dir=f"{flare_dir}/figures_masked",PLOT_LIGHTCURVE=True,MASK=True)
             # Create model arguments
-    plot_simult("./data/pha_class", flare_num, instrument_names)
+    plot_simult("./data/pha_multi", flare_num, instrument_names)
+    plot_simult("./data/pha_multi", flare_num, instrument_names,fig_dir=f"{data_dir}/flare_num_{flare_num}/figures_masked",MASK=True)

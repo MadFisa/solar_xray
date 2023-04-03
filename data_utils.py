@@ -1,3 +1,11 @@
+"""
+File: data_utils.py
+Author: Asif Mohamed Mandayapuram
+Email: asifmp97@gmail.com
+Github: github/MadFisa
+Description: A module conatining utilities requied for daxss and xsm data processing.
+"""
+
 import os
 import warnings
 
@@ -133,6 +141,7 @@ def create_daxss_pha(
     arf_path="minxss_fm3_ARF.fits",
     rmf_path="minxss_fm3_RMF.fits",
     out_dir="./",
+    bin_size=None,
 ):
     """
     Creates PHA files for datarray passed of DAXSS data.
@@ -143,9 +152,11 @@ def create_daxss_pha(
     out_dir : directory to output the PHA files to, optional
     arf_path : path to arf file
     rmf_path : path to rmf file
+    bin_size : string, bin size to bin, expected in format for pd.resample.
 
     Returns
     -------
+    file_names_list : a list of all the files that was created
 
 
     """
@@ -168,6 +179,7 @@ def create_daxss_pha(
     hdr_data["HDUCLASS"] = "OGIP"
     hdr_data["LONGSTRN"] = "OGIP 1.0"
     hdr_data["HDUCLAS1"] = "SPECTRUM"
+    hdr_data["HDUCLAS3"] = "RATE"
     hdr_data["HDUVERS1"] = "1.2.1"
     hdr_data["HDUVERS"] = "1.2.1"
 
@@ -182,34 +194,69 @@ def create_daxss_pha(
     hdr_data["CORRFILE"] = "none"
     hdr_data["EXTNAME"] = "SPECTRUM"
     hdr_data["FILTER"] = "Be/Kapton"
-    hdr_data["EXPOSURE"] = "9"
+    # hdr_data["EXPOSURE"] = "9"
     hdr_data["DETCHANS"] = "1000"
     hdr_data["GROUPING"] = "0"
-    # CALDB = "/home/DAXSS_AED/Chianti_codes/xsm/caldb"
     channel_number_array = np.arange(1, 1001, dtype=np.int32)
     hdr_data["RESPFILE"] = rmf_path
     hdr_data["ANCRFILE"] = arf_path
     daxss_data_selected = data_array.isel(energy=slice(6, 1006))
     channel_number_array = np.arange(1, 1001, dtype=np.int32)
-    counts = daxss_data_selected["cps"]
-    systematic_error_array = daxss_data_selected["cps_err"] / daxss_data_selected["cps"]
+
+    # Define columns
+
+    cps = daxss_data_selected["cps"]
     statistical_error_array = daxss_data_selected["cps_precision"]
+    cps_accuracy = daxss_data_selected["cps_accuracy"]
+    cps_systematic = np.sqrt(cps_accuracy**2 - statistical_error_array**2)
+    integration_time = daxss_data_selected["integration_time"]
+
+    if bin_size is not None:
+        # resampled = cps.resample(time=bin_size)
+        resampled = cps.resample(
+            time=bin_size, origin="start", closed="left", label="left"
+        )
+        cps = resampled.sum()
+        statistical_error_array = statistical_error_array.resample(
+            time=bin_size, origin="start", closed="left", label="left"
+        ).apply(calc_shot_noise)
+        cps_systematic = cps_systematic.resample(
+            time=bin_size, origin="start", closed="left", label="left"
+        ).mean()
+        integration_time = integration_time.resample(
+            time=bin_size, origin="start", closed="left", label="left"
+        ).sum()
+
+    systematic_error_array = cps_systematic / cps
 
     # Creating and Storing the FITS File
-    time_ISO_array = daxss_data_selected.time
+    cps = cps.dropna(dim="time", how="all")
+    time_ISO_array = cps.time
+    # Times for file name obtained by taking center of time labels
+    t_temp = time_ISO_array.data.copy()
+    dt = np.diff(t_temp)
+    dt = np.append(dt, dt[-1])
+    time_file_name = time_ISO_array + dt / 2
+
+    file_names_list = []
     #%% Create the array
     c1 = channel_number_array
-    for i, time in enumerate(time_ISO_array):
-        c2 = counts.isel(time=i)
-        c3 = statistical_error_array.isel(time=i)
-        c4 = systematic_error_array.isel(time=i)  # Accuracy = Systematic Error.
-        c4[np.isnan(c4)] = 0
-        file_name = f"DAXSS_{np.datetime_as_string(time.data)}.pha"
+    for time, time_file_i in zip(time_ISO_array, time_file_name):
+        c2 = cps.sel(time=time)
+        c3 = statistical_error_array.sel(time=time)
+        c4 = systematic_error_array.sel(time=time)
+        exposure = integration_time.sel(time=time).data
+        c4[
+            np.isnan(c4)
+        ] = (
+            c4.mean()
+        )  # WHAT?! TODO: We are just replacing missing values with mean. Need to look into better ways
+        file_name = f"DAXSS_{np.datetime_as_string(time_file_i.data)}.pha"
         hdr_dummy["FILENAME"] = file_name
         hdr_dummy["DATE"] = np.datetime_as_string(time.data)
         hdr_data["FILENAME"] = hdr_dummy["FILENAME"]
         hdr_data["DATE"] = hdr_dummy["DATE"]
-        # Data
+        hdr_data["EXPOSURE"] = float(exposure)  # Data
         hdu_data = fits.BinTableHDU.from_columns(
             [
                 fits.Column(name="CHANNEL", format="J", array=c1),
@@ -223,6 +270,9 @@ def create_daxss_pha(
         hdul = fits.HDUList([dummy_primary, hdu_data])
         filename_fits = f"{out_dir}/{file_name}"
         hdul.writeto(filename_fits, overwrite=True)
+        file_names_list.append(filename_fits)
+
+    return file_names_list
 
 
 def read_tables(table_dir, tables_list=None):
@@ -279,14 +329,16 @@ def read_daxss_data(file_name):
     cps = daxss_data.variables["SPECTRUM_CPS"]
     cps_err = daxss_data.variables["SPECTRUM_CPS_ACCURACY"]
     cps_precision = daxss_data.variables["SPECTRUM_CPS_PRECISION"]
+    integration_time = daxss_data["INTEGRATION_TIME"]
 
     ds = xr.Dataset(
         data_vars={
             "cps": (("time", "energy"), cps),
-            "cps_err": (("time", "energy"), cps_err),
+            "cps_accuracy": (("time", "energy"), cps_err),
             "cps_precision": (("time", "energy"), cps_precision),
             "irradiance": (("time", "energy"), irradiance),
-            "irradiance_err": (("time", "energy"), irradiance_err),
+            "irradiance_uncert": (("time", "energy"), irradiance_err),
+            "integration_time": (("time"), integration_time),
         },
         coords={"time": dates, "energy": energy[0]},
     )
@@ -483,6 +535,23 @@ class instrument:
         """
         self.arf = create_arf_dataarray(arf_file_path)
         return self.arf
+
+
+def calc_shot_noise(da):
+    """
+    Calculates shot noise for resample from input array of individual shot noises.
+
+    Parameters
+    ----------
+    da : data array like
+
+    Returns
+    -------
+    float, total shot noise for the given array.
+
+    """
+    err2 = da**2
+    return np.sqrt(err2.sum(dim="time"))
 
 
 class DaXSS_instrument(instrument):

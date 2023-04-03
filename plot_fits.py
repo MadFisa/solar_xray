@@ -24,7 +24,7 @@ date_formatter = DateFormatter("%H:%M")
 # define data
 observation_file = "./flare_filtering/data/flare_observation.h5"
 
-def plot_individual(instrument, data_dir,flare_num):
+def plot_individual(instrument, data_dir,flare_num, PLOT_LIGHTCURVE=True):
     """
     Function to plot individual components of the fit.
 
@@ -48,7 +48,6 @@ def plot_individual(instrument, data_dir,flare_num):
     observation_table = pd.read_hdf(observation_file, "obs")
     df = pd.read_csv(results,parse_dates=True,index_col=0)
     # df = pd.read_hdf(results,parse_dates=True)
-    net_counts = observation_table.loc[flare_num][f'{instrument}_lc']
     times = df.index
     flare = observation_table.loc[flare_num]
     peak_time = flare["event_peaktime"]
@@ -72,7 +71,9 @@ def plot_individual(instrument, data_dir,flare_num):
     plt.title(f"flare {flare_num} on {peak_time}")
     ax2 = plt.twinx()
     ax2.grid(visible=False)
-    net_counts.plot.line("o--", alpha=0.6, color="black", ax=ax2)
+    if PLOT_LIGHTCURVE:
+        net_counts = observation_table.loc[flare_num][f'{instrument}_lc']
+        net_counts.plot.line("o--", alpha=0.6, color="black", ax=ax2)
     ax2.set_ylabel(r"Irradinace ($W/m^2$)")
     plt.gca().xaxis.set_major_formatter(date_formatter)
     plt.tight_layout()
@@ -96,7 +97,8 @@ def plot_individual(instrument, data_dir,flare_num):
     plt.title(f"flare {flare_num} on {peak_time}")
     ax2 = plt.twinx()
     ax2.grid(visible=False)
-    net_counts.plot.line("o--", alpha=0.6, color="black", ax=ax2)
+    if PLOT_LIGHTCURVE:
+        net_counts.plot.line("o--", alpha=0.6, color="black", ax=ax2)
     ax2.set_ylabel(r"Irradinace ($W/m^2$)")
     plt.gca().xaxis.set_major_formatter(date_formatter)
     plt.tight_layout()
@@ -119,7 +121,8 @@ def plot_individual(instrument, data_dir,flare_num):
         plt.title(f"flare {flare_num} on {peak_time}")
         ax2 = plt.twinx()
         ax2.grid(visible=False)
-        net_counts.plot.line("o--", alpha=0.3, color="black", ax=ax2)
+        if PLOT_LIGHTCURVE:
+            net_counts.plot.line("o--", alpha=0.3, color="black", ax=ax2)
         ax2.set_ylabel(r"Irradinace ($W/m^2$)")
         plt.gca().xaxis.set_major_formatter(date_formatter)
         plt.tight_layout()
@@ -140,7 +143,8 @@ def plot_individual(instrument, data_dir,flare_num):
         plt.title(f"flare {flare_num} on {peak_time}")
         ax2 = plt.twinx()
         ax2.grid(visible=False)
-        net_counts.plot.line("o--", alpha=0.6, color="black", ax=ax2)
+        if PLOT_LIGHTCURVE:
+            net_counts.plot.line("o--", alpha=0.6, color="black", ax=ax2)
         ax2.set_ylabel(r"Irradinace ($W/m^2$)")
         plt.gca().xaxis.set_major_formatter(date_formatter)
         plt.tight_layout()
@@ -162,7 +166,8 @@ def plot_individual(instrument, data_dir,flare_num):
     plt.title(f"flare {flare_num} on {peak_time}")
     ax2 = plt.twinx()
     ax2.grid(visible=False)
-    net_counts.plot.line("o--", alpha=0.6, color="black", ax=ax2)
+    if PLOT_LIGHTCURVE:
+        net_counts.plot.line("o--", alpha=0.6, color="black", ax=ax2)
     ax2.set_ylabel(r"Irradinace ($W/m^2$)")
     plt.gca().xaxis.set_major_formatter(date_formatter)
     plt.tight_layout()
@@ -199,10 +204,13 @@ def plot_simult(flare_dir, flare_num, instruments):
 
     for i, instrument in enumerate(instruments):
         df = pd.read_csv(results_files[i], parse_dates=True, index_col=0)
-        net_counts = observation_table.loc[flare_num][f"{instrument}_lc"]
+        if instrument != 'simult':
+            net_counts = observation_table.loc[flare_num][f"{instrument}_lc"]
+        else:
+            net_counts = []
+        net_counts_list.append(net_counts)
         times = df.index
         df_list.append(df)
-        net_counts_list.append(net_counts)
         times_list.append(times)
         if len(df.columns)>pars_len:
             pars = df.columns[0:-1:4]
@@ -268,7 +276,8 @@ def plot_simult(flare_dir, flare_num, instruments):
                 # net_counts.plot.line("o--", alpha=0.6 , ax=ax2,label=instrument)
         ax2 = plt.twinx()
         for instrument,net_counts in zip(instruments,net_counts_list) :
-            net_counts.plot.line("o--", alpha=0.3,  ax=ax2,label=instrument)
+            if instrument != 'simult':
+                net_counts.plot.line("o--", alpha=0.3,  ax=ax2,label=instrument)
         ax2.grid(visible=False)
         ax2.set_ylabel(r"Irradiance ($W/m^2$)")
         plt.gca().xaxis.set_major_formatter(date_formatter)
@@ -291,7 +300,8 @@ def plot_simult(flare_dir, flare_num, instruments):
     plt.title(f"flare {flare_num} on {peak_time}")
     ax2 = plt.twinx()
     for instrument,net_counts in zip(instruments,net_counts_list) :
-        net_counts.plot.line("--", alpha=0.3,  ax=ax2,label=instrument)
+        if instrument != 'simult':
+            net_counts.plot.line("--", alpha=0.3,  ax=ax2,label=instrument)
     ax2.grid(visible=False)
     ax2.set_ylabel(r"Irradiance ($W/m^2$)")
     plt.gca().xaxis.set_major_formatter(date_formatter)

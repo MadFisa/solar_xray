@@ -208,35 +208,50 @@ def create_daxss_pha(
     cps = daxss_data_selected["cps"]
     statistical_error_array = daxss_data_selected["cps_precision"]
     cps_accuracy = daxss_data_selected["cps_accuracy"]
-    cps_systematic = np.sqrt(cps_accuracy ** 2 - statistical_error_array ** 2)
+    cps_systematic = np.sqrt(cps_accuracy**2 - statistical_error_array**2)
     integration_time = daxss_data_selected["integration_time"]
 
     if bin_size is not None:
-        resampled = cps.resample(time=bin_size)
-        # resampled = counts.resample(time=bin_size,origin='start',closed="left",label="left") TODO upgrade to newer xarray
-        cps = resampled.sum()
-        statistical_error_array = statistical_error_array.resample(time=bin_size).apply(
-            calc_shot_noise
+        # resampled = cps.resample(time=bin_size)
+        resampled = cps.resample(
+            time=bin_size, origin="start", closed="left", label="left"
         )
-        cps_systematic = cps_systematic.resample(time=bin_size).mean()
-        integration_time = integration_time.resample(time=bin_size).sum()
+        cps = resampled.sum()
+        statistical_error_array = statistical_error_array.resample(
+            time=bin_size, origin="start", closed="left", label="left"
+        ).apply(calc_shot_noise)
+        cps_systematic = cps_systematic.resample(
+            time=bin_size, origin="start", closed="left", label="left"
+        ).mean()
+        integration_time = integration_time.resample(
+            time=bin_size, origin="start", closed="left", label="left"
+        ).sum()
 
     systematic_error_array = cps_systematic / cps
 
     # Creating and Storing the FITS File
     cps = cps.dropna(dim="time", how="all")
     time_ISO_array = cps.time
+    # Times for file name obtained by taking center of time labels
+    t_temp = time_ISO_array.data.copy()
+    dt = np.diff(t_temp)
+    dt = np.append(dt, dt[-1])
+    time_file_name = time_ISO_array + dt / 2
+
     file_names_list = []
     #%% Create the array
     c1 = channel_number_array
-    for time in time_ISO_array:
+    for time, time_file_i in zip(time_ISO_array, time_file_name):
         c2 = cps.sel(time=time)
         c3 = statistical_error_array.sel(time=time)
         c4 = systematic_error_array.sel(time=time)
         exposure = integration_time.sel(time=time).data
-        c4[np.isnan(c4)] = c4.mean()  # WHAT?! TODO:
-        # c4[np.isnan(c4)] = 0 # WHAT?! TODO:
-        file_name = f"DAXSS_{np.datetime_as_string(time.data)}.pha"
+        c4[
+            np.isnan(c4)
+        ] = (
+            c4.mean()
+        )  # WHAT?! TODO: We are just replacing missing values with mean. Need to look into better ways
+        file_name = f"DAXSS_{np.datetime_as_string(time_file_i.data)}.pha"
         hdr_dummy["FILENAME"] = file_name
         hdr_dummy["DATE"] = np.datetime_as_string(time.data)
         hdr_data["FILENAME"] = hdr_dummy["FILENAME"]
@@ -535,7 +550,7 @@ def calc_shot_noise(da):
     float, total shot noise for the given array.
 
     """
-    err2 = da ** 2
+    err2 = da**2
     return np.sqrt(err2.sum(dim="time"))
 
 

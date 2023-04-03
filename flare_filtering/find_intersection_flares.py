@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import xarray as xr
+from tqdm import tqdm
 
 from data_utils import read_daxss_data
 
@@ -87,7 +88,7 @@ figures_dir = "./data/figures/flares_Log"
 if not os.path.isdir(figures_dir):
     os.makedirs(figures_dir)
 
-for flare_num in observations_table.index:
+for flare_num in tqdm(observations_table.index):
     fig, ax = plt.subplots(1, 1, figsize=(16, 9))
     flare_peak = observations_table["event_peaktime"][flare_num]
     flare_class = observations_table["fl_goescls"][flare_num]

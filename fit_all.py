@@ -36,8 +36,6 @@ instrument_names = ["xsm", "daxss"]
 observation_file = "./flare_filtering/data/flare_observation.h5"
 observation_table = pd.read_hdf(observation_file, "obs")
 
-CREATE = True
-BIN = True
 min_count = 10  # Minimum count for grppha
 #%% xsm Stuff
 xsm_folder = "./data/xsm/data/"
@@ -57,18 +55,20 @@ xsm_fit_args = {
     "max_E": max_E,
     "do_dynamic_elements": do_dynamic_elements,
     "cutoff_cps": xsm_cutoff_cps,
+    "labels" : ['xsm']
 }
 daxss_fit_args = {
     "min_E": min_E,
     "max_E": max_E,
     "do_dynamic_elements": do_dynamic_elements,
     "cutoff_cps": daxss_cutoff_cps,
+    "labels" : ['xsm']
 }
 model_args = {"FIP_elements": FIP_elements}
 #%% Instrument specifics
 # xsm Stuff
 xsm_folder = "./data/xsm/data/"
-data_dir = "./data/pha_class"
+data_dir = "./data/pha_multi"
 xsm.load_data(xsm_folder)
 
 DAXSS_file = "./data/daxss_solarSXR_level1_2022-02-14-mission_v2.0.0.ncdf"
@@ -77,6 +77,8 @@ daxss_rmf_path = "./data/minxss_fm3_RMF.fits"
 daxss.load_data(DAXSS_file, daxss_rmf_path, daxss_arf_path)
 
 for flare_num in flares:
+    CREATE = False
+    BIN = False
     for instrument_i in instruments_list:
         flare_dir = f"{data_dir}/flare_num_{flare_num}/{instrument_i.name}"
         fit_file = f"{flare_dir}/fit/results.csv"
@@ -120,5 +122,7 @@ for flare_num in flares:
                 data_dir,
                 flare_num,
             )
+            plot_individual(instrument_i.name,data_dir,flare_num,out_dir=f"{flare_dir}/figures_masked",PLOT_LIGHTCURVE=True,MASK=True)
             # Create model arguments
-    plot_simult("./data/pha_class", flare_num, instrument_names)
+    plot_simult("./data/pha_multi", flare_num, instrument_names)
+    plot_simult("./data/pha_multi", flare_num, instrument_names,fig_dir=f"{data_dir}/flare_num_{flare_num}/figures_masked",MASK=True)
